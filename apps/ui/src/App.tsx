@@ -40,6 +40,31 @@ if (!root) {
 	throw new Error("Missing #app root");
 }
 
+const normalizePath = (path: string) => {
+	if (path.length <= 1) {
+		return "/";
+	}
+	return path.replace(/\/+$/, "") || "/";
+};
+
+const tabToPath: Record<TabId, string> = {
+	dashboard: "/",
+	channels: "/channels",
+	models: "/models",
+	tokens: "/tokens",
+	usage: "/usage",
+	settings: "/settings",
+};
+
+const pathToTab: Record<string, TabId> = {
+	"/": "dashboard",
+	"/channels": "channels",
+	"/models": "models",
+	"/tokens": "tokens",
+	"/usage": "usage",
+	"/settings": "settings",
+};
+
 /**
  * Renders the admin console application.
  *
@@ -50,7 +75,13 @@ const App = () => {
 	const [token, setToken] = useState<string | null>(() =>
 		localStorage.getItem("admin_token"),
 	);
-	const [activeTab, setActiveTab] = useState<TabId>("dashboard");
+	const [activeTab, setActiveTab] = useState<TabId>(() => {
+		if (typeof window === "undefined") {
+			return "dashboard";
+		}
+		const normalized = normalizePath(window.location.pathname);
+		return pathToTab[normalized] ?? "dashboard";
+	});
 	const [loading, setLoading] = useState(false);
 	const [notice, setNotice] = useState("");
 	const [data, setData] = useState<AdminData>(initialData);
@@ -162,6 +193,17 @@ const App = () => {
 	}, [token, activeTab, loadTab]);
 
 	useEffect(() => {
+		const handlePopState = () => {
+			const normalized = normalizePath(window.location.pathname);
+			setActiveTab(pathToTab[normalized] ?? "dashboard");
+		};
+		window.addEventListener("popstate", handlePopState);
+		return () => {
+			window.removeEventListener("popstate", handlePopState);
+		};
+	}, []);
+
+	useEffect(() => {
 		if (!data.settings) {
 			return;
 		}
@@ -227,6 +269,11 @@ const App = () => {
 	}, []);
 
 	const handleTabChange = useCallback((tabId: TabId) => {
+		const nextPath = tabToPath[tabId];
+		const normalized = normalizePath(window.location.pathname);
+		if (normalized !== nextPath) {
+			history.pushState(null, "", nextPath);
+		}
 		setActiveTab(tabId);
 	}, []);
 

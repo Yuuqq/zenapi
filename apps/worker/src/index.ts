@@ -111,7 +111,7 @@ app.route("/api/group", newapiGroupRoutes);
 
 app.route("/v1", proxyRoutes);
 
-app.notFound((c) => {
+app.notFound(async (c) => {
 	const path = c.req.path;
 	if (
 		path === "/api" ||
@@ -124,7 +124,25 @@ app.notFound((c) => {
 	const assets = (
 		c.env as { ASSETS?: { fetch: (input: Request) => Promise<Response> } }
 	).ASSETS;
-	return assets ? assets.fetch(c.req.raw) : c.text("Not Found", 404);
+	if (!assets) {
+		return c.text("Not Found", 404);
+	}
+
+	const res = await assets.fetch(c.req.raw);
+	if (res.status !== 404) {
+		return res;
+	}
+
+	const accept = c.req.header("accept") ?? "";
+	const isHtml = accept.includes("text/html");
+	const isFile = path.includes(".");
+	if (!isHtml || isFile) {
+		return res;
+	}
+
+	const url = new URL(c.req.url);
+	url.pathname = "/index.html";
+	return assets.fetch(new Request(url.toString(), c.req.raw));
 });
 
 export default app;
