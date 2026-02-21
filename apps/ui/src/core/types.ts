@@ -87,6 +87,13 @@ export type MonitoringData = {
 		active_channels: number;
 		total_channels: number;
 	};
+	recentStatus: {
+		total_requests: number;
+		total_success: number;
+		total_errors: number;
+		avg_latency_ms: number;
+		success_rate: number;
+	};
 	channels: MonitoringChannelData[];
 	dailyTrends: MonitoringDailyTrend[];
 	range: string;

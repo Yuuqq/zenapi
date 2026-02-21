@@ -76,7 +76,6 @@ const formatSlotLabel = (slot: string, range: string): string => {
 		const hh = String(date.getHours()).padStart(2, "0");
 		const mm = String(date.getMinutes()).padStart(2, "0");
 		return `${hh}:${mm}`;
-		return slot.slice(11, 16);
 	}
 	return slot;
 };
@@ -176,7 +175,7 @@ export const MonitoringView = ({
 	token,
 	onLoaded,
 }: MonitoringViewProps) => {
-	const [range, setRange] = useState("7d");
+	const [range, setRange] = useState("15m");
 	const [loading, setLoading] = useState(false);
 
 	const fetchData = useCallback(
@@ -230,9 +229,10 @@ export const MonitoringView = ({
 	}
 
 	const { summary, channels } = monitoring;
+	const recent = monitoring.recentStatus;
 
-	// Overall status
-	const overallStatus = summary.success_rate >= 99 ? "所有系统正常运行" : summary.success_rate >= 95 ? "部分系统降级" : "系统异常";
+	// Overall status based on last 15 minutes
+	const overallStatus = recent.success_rate >= 99 ? "所有系统正常运行" : recent.success_rate >= 95 ? "部分系统降级" : "系统异常";
 
 	return (
 		<div class="space-y-5">
@@ -256,20 +256,20 @@ export const MonitoringView = ({
 				{loading && <span class="text-xs text-stone-400">加载中...</span>}
 			</div>
 
-			{/* Overall status banner */}
+			{/* Overall status banner (always based on last 15 minutes) */}
 			<div class={`flex items-center gap-3 rounded-2xl border p-5 shadow-lg ${
-				summary.success_rate >= 99
+				recent.success_rate >= 99
 					? "border-green-200 bg-green-50"
-					: summary.success_rate >= 95
+					: recent.success_rate >= 95
 						? "border-yellow-200 bg-yellow-50"
 						: "border-red-200 bg-red-50"
 			}`}>
-				<span class={`inline-block h-3 w-3 rounded-full ${statusDot(summary.success_rate)}`} />
-				<span class={`text-lg font-semibold ${rateColor(summary.success_rate)}`}>
+				<span class={`inline-block h-3 w-3 rounded-full ${statusDot(recent.success_rate)}`} />
+				<span class={`text-lg font-semibold ${rateColor(recent.success_rate)}`}>
 					{overallStatus}
 				</span>
 				<span class="ml-auto text-sm text-stone-500">
-					{summary.total_requests} 请求 &middot; {summary.success_rate}% 成功率 &middot; {summary.avg_latency_ms}ms 延迟
+					近 15 分钟: {recent.total_requests} 请求 &middot; {recent.success_rate}% 成功率 &middot; {recent.avg_latency_ms}ms 延迟
 				</span>
 			</div>
 

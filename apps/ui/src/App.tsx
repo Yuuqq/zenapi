@@ -123,7 +123,7 @@ const App = () => {
 	}, [apiFetch]);
 
 	const loadMonitoring = useCallback(async () => {
-		const monitoring = await apiFetch<MonitoringData>("/api/monitoring?range=7d");
+		const monitoring = await apiFetch<MonitoringData>("/api/monitoring?range=15m");
 		setData((prev) => ({ ...prev, monitoring }));
 	}, [apiFetch]);
 

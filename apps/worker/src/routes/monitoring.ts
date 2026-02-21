@@ -67,6 +67,23 @@ monitoring.get("/", async (c) => {
 		.bind(since)
 		.first();
 
+	// Always query last 15 minutes for system status
+	const recentSince = new Date(Date.now() - 15 * 60_000)
+		.toISOString()
+		.slice(0, 19)
+		.replace("T", " ");
+	const recentRow = await c.env.DB.prepare(
+		`SELECT
+			COUNT(*) AS total_requests,
+			COALESCE(SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END), 0) AS total_success,
+			COALESCE(SUM(CASE WHEN status != 'ok' THEN 1 ELSE 0 END), 0) AS total_errors,
+			COALESCE(AVG(latency_ms), 0) AS avg_latency_ms
+		FROM usage_logs
+		WHERE created_at >= ?`,
+	)
+		.bind(recentSince)
+		.first();
+
 	const totalRequests = Number(globalRow?.total_requests ?? 0);
 	const totalSuccess = Number(globalRow?.total_success ?? 0);
 	const totalErrors = Number(globalRow?.total_errors ?? 0);
@@ -104,6 +121,10 @@ monitoring.get("/", async (c) => {
 
 	const activeChannels = channels.filter((ch) => ch.total_requests > 0).length;
 
+	const recentRequests = Number(recentRow?.total_requests ?? 0);
+	const recentSuccess = Number(recentRow?.total_success ?? 0);
+	const recentErrors = Number(recentRow?.total_errors ?? 0);
+
 	return c.json({
 		summary: {
 			total_requests: totalRequests,
@@ -116,6 +137,16 @@ monitoring.get("/", async (c) => {
 					: 100,
 			active_channels: activeChannels,
 			total_channels: channels.length,
+		},
+		recentStatus: {
+			total_requests: recentRequests,
+			total_success: recentSuccess,
+			total_errors: recentErrors,
+			avg_latency_ms: Math.round(Number(recentRow?.avg_latency_ms ?? 0)),
+			success_rate:
+				recentRequests > 0
+					? Math.round((recentSuccess / recentRequests) * 10000) / 100
+					: 100,
 		},
 		channels,
 		dailyTrends,
