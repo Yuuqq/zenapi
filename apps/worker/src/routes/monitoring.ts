@@ -16,8 +16,7 @@ monitoring.get("/", async (c) => {
 	const config = RANGE_CONFIG[range] ?? RANGE_CONFIG["7d"];
 	const since = new Date(Date.now() - config.ms)
 		.toISOString()
-		.slice(0, 19)
-		.replace("T", " ");
+		.slice(0, 19);
 	const slotExpr = `substr(created_at, 1, ${config.sqlSlice})`;
 
 	const channelRows = await c.env.DB.prepare(
@@ -70,8 +69,7 @@ monitoring.get("/", async (c) => {
 	// Always query last 15 minutes for system status
 	const recentSince = new Date(Date.now() - 15 * 60_000)
 		.toISOString()
-		.slice(0, 19)
-		.replace("T", " ");
+		.slice(0, 19);
 	const recentRow = await c.env.DB.prepare(
 		`SELECT
 			COUNT(*) AS total_requests,
