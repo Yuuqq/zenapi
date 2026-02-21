@@ -27,6 +27,7 @@ export const initialChannelForm: ChannelForm = {
 	weight: 1,
 	api_format: "openai",
 	custom_headers: "",
+	models: "",
 };
 
 export const initialSettingsForm: SettingsForm = {

@@ -99,6 +99,7 @@ export type ChannelForm = {
 	weight: number;
 	api_format: ChannelApiFormat;
 	custom_headers: string;
+	models: string;
 };
 
 export type SettingsForm = {

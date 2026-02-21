@@ -303,6 +303,25 @@ const App = () => {
 
 	const startChannelEdit = useCallback((channel: Channel) => {
 		setEditingChannel(channel);
+		let modelsList = "";
+		if (channel.models_json) {
+			try {
+				const parsed = JSON.parse(channel.models_json);
+				const arr = Array.isArray(parsed)
+					? parsed
+					: Array.isArray(parsed?.data)
+						? parsed.data
+						: [];
+				modelsList = arr
+					.map((m: unknown) =>
+						typeof m === "string" ? m : ((m as { id?: string })?.id ?? ""),
+					)
+					.filter(Boolean)
+					.join("\n");
+			} catch {
+				/* ignore */
+			}
+		}
 		setChannelForm({
 			name: channel.name ?? "",
 			base_url: channel.base_url ?? "",
@@ -310,6 +329,7 @@ const App = () => {
 			weight: channel.weight ?? 1,
 			api_format: channel.api_format ?? "openai",
 			custom_headers: channel.custom_headers_json ?? "",
+			models: modelsList,
 		});
 		setChannelModalOpen(true);
 		setNotice("");
@@ -334,6 +354,11 @@ const App = () => {
 				return;
 			}
 			try {
+				const modelsArray = channelForm.models
+					.split("\n")
+					.map((line) => line.trim())
+					.filter(Boolean)
+					.map((id) => ({ id }));
 				const body = {
 					name: channelName,
 					base_url: channelForm.base_url.trim(),
@@ -341,6 +366,7 @@ const App = () => {
 					weight: Number(channelForm.weight),
 					api_format: channelForm.api_format,
 					custom_headers: channelForm.custom_headers.trim() || undefined,
+					models: modelsArray.length > 0 ? modelsArray : undefined,
 				};
 				if (editingChannel) {
 					await apiFetch(`/api/channels/${editingChannel.id}`, {

@@ -474,6 +474,30 @@ export const ChannelsView = ({
 									}
 								/>
 							</div>
+							<div>
+								<label
+									class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500"
+									for="channel-models"
+								>
+									模型列表
+								</label>
+								<textarea
+									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 font-mono"
+									id="channel-models"
+									rows={3}
+									placeholder="每行一个模型 ID，如：&#10;gpt-4o&#10;claude-sonnet-4-20250514"
+									value={channelForm.models}
+									onInput={(event) =>
+										onFormChange({
+											models: (event.currentTarget as HTMLTextAreaElement)
+												.value,
+										})
+									}
+								/>
+								<p class="mt-1 text-xs text-stone-400">
+									每行一个模型 ID，留空则由连通测试自动获取。
+								</p>
+							</div>
 							{channelForm.api_format === "custom" && (
 								<div>
 									<label
