@@ -91,14 +91,13 @@ const ChannelBar = ({ channel, slots, range, trendMap }: ChannelBarProps) => {
 	const [hoveredSlot, setHoveredSlot] = useState<string | null>(null);
 
 	const hoveredTrend = hoveredSlot ? trendMap.get(`${channel.channel_id}|${hoveredSlot}`) : null;
-	const recentRate = channel.recent_success_rate;
 
 	return (
 		<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-lg">
 			{/* Header row */}
 			<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
 				<div class="flex items-center gap-2.5">
-					<span class={`inline-block h-2.5 w-2.5 rounded-full ${statusDot(recentRate)}`} />
+					<span class={`inline-block h-2.5 w-2.5 rounded-full ${statusDot(channel.success_rate)}`} />
 					<span class="font-medium text-stone-900">{channel.channel_name}</span>
 					<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">
 						{channel.api_format}
@@ -110,12 +109,12 @@ const ChannelBar = ({ channel, slots, range, trendMap }: ChannelBarProps) => {
 					)}
 				</div>
 				<div class="flex items-center gap-3 text-xs text-stone-500">
-					<span class={`font-medium ${rateColor(recentRate)}`}>
-						{recentRate !== null ? `${recentRate}%` : "-"}
+					<span class={`font-medium ${rateColor(channel.success_rate)}`}>
+						{channel.success_rate !== null ? `${channel.success_rate}%` : "-"}
 					</span>
-					<span>{channel.recent_avg_latency_ms !== null ? `${channel.recent_avg_latency_ms}ms` : "-"}</span>
-					<span class={`font-medium ${rateColor(recentRate)}`}>
-						{statusLabel(recentRate)}
+					<span>{channel.total_requests > 0 ? `${channel.avg_latency_ms}ms` : "-"}</span>
+					<span class={`font-medium ${rateColor(channel.success_rate)}`}>
+						{statusLabel(channel.success_rate)}
 					</span>
 				</div>
 			</div>
