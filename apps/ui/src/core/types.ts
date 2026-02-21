@@ -54,6 +54,44 @@ export type DashboardData = {
 	byToken: Array<{ token_name: string; requests: number; tokens: number }>;
 };
 
+export type MonitoringChannelData = {
+	channel_id: string;
+	channel_name: string;
+	channel_status: string;
+	api_format: string;
+	total_requests: number;
+	success_count: number;
+	error_count: number;
+	success_rate: number | null;
+	avg_latency_ms: number;
+	last_seen: string | null;
+};
+
+export type MonitoringDailyTrend = {
+	channel_id: string;
+	day: string;
+	requests: number;
+	success: number;
+	errors: number;
+	success_rate: number;
+	avg_latency_ms: number;
+};
+
+export type MonitoringData = {
+	summary: {
+		total_requests: number;
+		total_success: number;
+		total_errors: number;
+		avg_latency_ms: number;
+		success_rate: number;
+		active_channels: number;
+		total_channels: number;
+	};
+	channels: MonitoringChannelData[];
+	dailyTrends: MonitoringDailyTrend[];
+	days: number;
+};
+
 export type Settings = {
 	log_retention_days: number;
 	session_ttl_hours: number;
@@ -76,11 +114,13 @@ export type AdminData = {
 	models: ModelItem[];
 	usage: UsageLog[];
 	dashboard: DashboardData | null;
+	monitoring: MonitoringData | null;
 	settings: Settings | null;
 };
 
 export type TabId =
 	| "dashboard"
+	| "monitoring"
 	| "channels"
 	| "models"
 	| "tokens"

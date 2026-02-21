@@ -18,6 +18,7 @@ import type {
 	Channel,
 	ChannelForm,
 	DashboardData,
+	MonitoringData,
 	Settings,
 	SettingsForm,
 	TabId,
@@ -30,6 +31,7 @@ import { ChannelsView } from "./features/ChannelsView";
 import { DashboardView } from "./features/DashboardView";
 import { LoginView } from "./features/LoginView";
 import { ModelsView } from "./features/ModelsView";
+import { MonitoringView } from "./features/MonitoringView";
 import { SettingsView } from "./features/SettingsView";
 import { TokensView } from "./features/TokensView";
 import { UsageView } from "./features/UsageView";
@@ -49,6 +51,7 @@ const normalizePath = (path: string) => {
 
 const tabToPath: Record<TabId, string> = {
 	dashboard: "/",
+	monitoring: "/monitoring",
 	channels: "/channels",
 	models: "/models",
 	tokens: "/tokens",
@@ -58,6 +61,7 @@ const tabToPath: Record<TabId, string> = {
 
 const pathToTab: Record<string, TabId> = {
 	"/": "dashboard",
+	"/monitoring": "monitoring",
 	"/channels": "channels",
 	"/models": "models",
 	"/tokens": "tokens",
@@ -118,6 +122,11 @@ const App = () => {
 		setData((prev) => ({ ...prev, dashboard }));
 	}, [apiFetch]);
 
+	const loadMonitoring = useCallback(async () => {
+		const monitoring = await apiFetch<MonitoringData>("/api/monitoring?days=7");
+		setData((prev) => ({ ...prev, monitoring }));
+	}, [apiFetch]);
+
 	const loadChannels = useCallback(async () => {
 		const result = await apiFetch<{ channels: Channel[] }>("/api/channels");
 		setData((prev) => ({ ...prev, channels: result.channels }));
@@ -156,6 +165,9 @@ const App = () => {
 				if (tabId === "dashboard") {
 					await loadDashboard();
 				}
+				if (tabId === "monitoring") {
+					await loadMonitoring();
+				}
 				if (tabId === "channels") {
 					await loadChannels();
 				}
@@ -181,6 +193,7 @@ const App = () => {
 			loadChannels,
 			loadDashboard,
 			loadModels,
+			loadMonitoring,
 			loadSettings,
 			loadTokens,
 			loadUsage,
@@ -569,6 +582,10 @@ const App = () => {
 		}
 	}, [loadUsage]);
 
+	const handleMonitoringLoaded = useCallback((monitoring: MonitoringData) => {
+		setData((prev) => ({ ...prev, monitoring }));
+	}, []);
+
 	const channelTotal = data.channels.length;
 	const channelTotalPages = useMemo(
 		() => Math.max(1, Math.ceil(channelTotal / channelPageSize)),
@@ -611,6 +628,15 @@ const App = () => {
 		}
 		if (activeTab === "dashboard") {
 			return <DashboardView dashboard={data.dashboard} />;
+		}
+		if (activeTab === "monitoring") {
+			return (
+				<MonitoringView
+					monitoring={data.monitoring}
+					token={token ?? ""}
+					onLoaded={handleMonitoringLoaded}
+				/>
+			);
 		}
 		if (activeTab === "channels") {
 			return (

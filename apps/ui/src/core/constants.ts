@@ -4,6 +4,7 @@ export const apiBase = import.meta.env.VITE_API_BASE ?? "";
 
 export const tabs: TabItem[] = [
 	{ id: "dashboard", label: "数据面板" },
+	{ id: "monitoring", label: "可用性监测" },
 	{ id: "channels", label: "渠道管理" },
 	{ id: "models", label: "模型广场" },
 	{ id: "tokens", label: "令牌管理" },
@@ -17,6 +18,7 @@ export const initialData: AdminData = {
 	models: [],
 	usage: [],
 	dashboard: null,
+	monitoring: null,
 	settings: null,
 };
 
