@@ -368,6 +368,8 @@ newapi.get("/test/:id", async (c) => {
 	const result = await fetchChannelModels(
 		String(channel.base_url),
 		String(channel.api_key),
+		channel.api_format,
+		channel.custom_headers_json,
 	);
 	if (!result.ok) {
 		await updateChannelTestResult(c.env.DB, id, {
@@ -398,6 +400,8 @@ newapi.post("/test", async (c) => {
 	const result = await fetchChannelModels(
 		String(channel.base_url),
 		String(channel.api_key),
+		channel.api_format,
+		channel.custom_headers_json,
 	);
 	if (!result.ok) {
 		await updateChannelTestResult(c.env.DB, String(id), {
@@ -423,6 +427,8 @@ newapi.get("/fetch_models/:id", async (c) => {
 	const result = await fetchChannelModels(
 		String(channel.base_url),
 		String(channel.api_key),
+		channel.api_format,
+		channel.custom_headers_json,
 	);
 	if (!result.ok) {
 		await updateChannelTestResult(c.env.DB, id, {
@@ -432,13 +438,24 @@ newapi.get("/fetch_models/:id", async (c) => {
 		return newApiFailure(c, 502, "获取模型失败");
 	}
 
-	await updateChannelTestResult(c.env.DB, id, {
-		ok: true,
-		elapsed: result.elapsed,
-		models: result.models,
-	});
+	if (result.models.length > 0) {
+		await updateChannelTestResult(c.env.DB, id, {
+			ok: true,
+			elapsed: result.elapsed,
+			models: result.models,
+		});
+	} else {
+		await updateChannelTestResult(c.env.DB, id, {
+			ok: true,
+			elapsed: result.elapsed,
+		});
+	}
 
-	return newApiSuccess(c, result.models);
+	const models =
+		result.models.length > 0
+			? result.models
+			: safeJsonParse(channel.models_json, []);
+	return newApiSuccess(c, models);
 });
 
 newapi.post("/fetch_models", async (c) => {

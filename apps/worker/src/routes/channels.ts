@@ -182,6 +182,8 @@ channels.post("/:id/test", async (c) => {
 	const result = await fetchChannelModels(
 		String(channel.base_url),
 		String(channel.api_key),
+		channel.api_format,
+		channel.custom_headers_json,
 	);
 
 	if (!result.ok) {
@@ -192,14 +194,21 @@ channels.post("/:id/test", async (c) => {
 		return jsonError(c, 502, "channel_unreachable", "channel_unreachable");
 	}
 
-	const payload = result.payload ?? { data: [] };
-	const models = Array.isArray(payload) ? payload : (payload?.data ?? []);
-	await updateChannelTestResult(c.env.DB, id, {
-		ok: true,
-		elapsed: result.elapsed,
-		modelsJson: JSON.stringify(payload),
-	});
+	// Only overwrite models_json when the test actually returned models
+	const hasModels = result.models.length > 0;
+	const updateData: {
+		ok: boolean;
+		elapsed: number;
+		modelsJson?: string;
+	} = { ok: true, elapsed: result.elapsed };
+	if (hasModels && result.payload) {
+		updateData.modelsJson = JSON.stringify(result.payload);
+	}
+	await updateChannelTestResult(c.env.DB, id, updateData);
 
+	const models = hasModels
+		? result.models
+		: safeJsonParse(channel.models_json, []);
 	return c.json({ ok: true, models });
 });
 
