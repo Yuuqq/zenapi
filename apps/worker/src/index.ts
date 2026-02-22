@@ -105,13 +105,14 @@ app.use(
 );
 
 app.use("/api/*", async (c, next) => {
+	const p = c.req.path;
 	if (
-		c.req.path === "/api/auth/login" ||
-		c.req.path.startsWith("/api/channel") ||
-		c.req.path.startsWith("/api/user") ||
-		c.req.path.startsWith("/api/group") ||
-		c.req.path.startsWith("/api/public") ||
-		c.req.path.startsWith("/api/u/")
+		p === "/api/auth/login" ||
+		p === "/api/channel" || p.startsWith("/api/channel/") ||
+		p === "/api/user" || p.startsWith("/api/user/") ||
+		p === "/api/group" || p.startsWith("/api/group/") ||
+		p.startsWith("/api/public") ||
+		p.startsWith("/api/u/")
 	) {
 		return next();
 	}

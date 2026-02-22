@@ -316,8 +316,10 @@ newapi.put("/", async (c) => {
 	}
 
 	const parsed = normalizeChannelInput(payload);
-	const models =
-		parsed.models.length > 0 ? parsed.models : extractModelIds(current);
+	const modelsJson =
+		parsed.models.length > 0
+			? modelsToJson(parsed.models)
+			: (current.models_json ?? "[]");
 	const mergedMetadata = mergeMetadata(
 		current.metadata_json,
 		parsed.metadata_json,
@@ -333,7 +335,7 @@ newapi.put("/", async (c) => {
 		weight: parsed.weight ?? current.weight ?? 1,
 		status: parsed.status ?? current.status,
 		rate_limit: parsed.rate_limit ?? current.rate_limit ?? 0,
-		models_json: modelsToJson(models),
+		models_json: modelsJson,
 		type: parsed.type ?? current.type ?? 1,
 		group_name: parsed.group_name ?? current.group_name ?? null,
 		priority: parsed.priority ?? current.priority ?? 0,

@@ -289,7 +289,7 @@ export const AdminApp = ({ token, updateToken }: AdminAppProps) => {
 						const ip = obj?.input_price;
 						const op = obj?.output_price;
 						const sh = obj?.shared;
-						if (ip != null || op != null || sh) {
+						if (ip != null || op != null || sh != null) {
 							return `${id}|${ip ?? ""}|${op ?? ""}|${sh ? "1" : "0"}`;
 						}
 						return id;

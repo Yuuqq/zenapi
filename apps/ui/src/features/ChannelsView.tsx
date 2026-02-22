@@ -28,7 +28,7 @@ function parseModelLines(text: string, defaultShared = false): ParsedModel[] {
 function rebuildModelsText(models: ParsedModel[]): string {
 	return models
 		.map((m) => {
-			if (m.input_price || m.output_price || m.shared) {
+			if (m.input_price || m.output_price || m.shared === true || m.shared === false) {
 				return `${m.id}|${m.input_price}|${m.output_price}|${m.shared ? "1" : "0"}`;
 			}
 			return m.id;

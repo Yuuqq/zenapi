@@ -53,12 +53,13 @@ export function channelSupportsSharedModel(
 	channel: ChannelRecord,
 	model?: string | null,
 ): boolean {
-	if (!model) {
-		return true;
-	}
 	const models = extractSharedModels(
 		channel as unknown as { id: string; name: string; models_json: string },
 	);
+	if (!model) {
+		// No specific model requested — channel qualifies if it has any shared model
+		return models.length > 0;
+	}
 	return models.some((entry) => entry.id === model);
 }
 
