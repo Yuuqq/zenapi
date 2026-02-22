@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import type { UserRecord } from "../middleware/userAuth";
 import { userAuth } from "../middleware/userAuth";
-import { extractModelPricings } from "../services/channel-models";
+import { extractModelPricings, extractSharedModelPricings } from "../services/channel-models";
 import { listActiveChannels } from "../services/channel-repo";
 import { getSiteMode } from "../services/settings";
 import { generateToken, sha256Hex } from "../utils/crypto";
@@ -32,7 +32,9 @@ userApi.get("/models", async (c) => {
 	>();
 
 	for (const channel of channels) {
-		const pricings = extractModelPricings(channel);
+		const pricings = siteMode === "shared"
+			? extractSharedModelPricings(channel)
+			: extractModelPricings(channel);
 		for (const p of pricings) {
 			const existing = modelMap.get(p.id) ?? [];
 			if (siteMode === "shared") {

@@ -1,7 +1,7 @@
 import "./styles.css";
 import { render, useCallback, useEffect, useState } from "hono/jsx/dom";
 import { createApiFetch } from "./core/api";
-import type { User } from "./core/types";
+import type { SiteMode, User } from "./core/types";
 import { AdminApp } from "./AdminApp";
 import { LoginView } from "./features/LoginView";
 import { PublicApp } from "./PublicApp";
@@ -26,6 +26,7 @@ const App = () => {
 		localStorage.getItem("user_token"),
 	);
 	const [userRecord, setUserRecord] = useState<User | null>(null);
+	const [siteMode, setSiteMode] = useState<SiteMode | null>(null);
 	const [notice, setNotice] = useState("");
 	const [path, setPath] = useState(() =>
 		normalizePath(window.location.pathname),
@@ -48,6 +49,14 @@ const App = () => {
 			localStorage.removeItem("user_token");
 			setUserRecord(null);
 		}
+	}, []);
+
+	// Fetch site mode on mount
+	useEffect(() => {
+		const api = createApiFetch(null, () => {});
+		api<{ site_mode: SiteMode }>("/api/public/site-info")
+			.then((result) => setSiteMode(result.site_mode))
+			.catch(() => setSiteMode("personal"));
 	}, []);
 
 	// Load user record when user token is available
@@ -94,7 +103,7 @@ const App = () => {
 
 	const handleUserLogout = useCallback(() => {
 		updateUserToken(null);
-		navigateTo("/");
+		navigateTo("/login");
 	}, [updateUserToken, navigateTo]);
 
 	const handleAdminLogin = useCallback(
@@ -117,6 +126,26 @@ const App = () => {
 		},
 		[updateAdminToken],
 	);
+
+	// Homepage redirect logic
+	if (path === "/" && siteMode !== null) {
+		if (siteMode === "personal") {
+			history.replaceState(null, "", "/admin");
+			setPath("/admin");
+		} else if (userToken && userRecord) {
+			history.replaceState(null, "", "/user");
+			setPath("/user");
+		} else {
+			history.replaceState(null, "", "/login");
+			setPath("/login");
+		}
+	}
+
+	// Personal mode: redirect all non-admin paths to admin
+	if (siteMode === "personal" && !path.startsWith("/admin")) {
+		history.replaceState(null, "", "/admin");
+		setPath("/admin");
+	}
 
 	// Admin routes
 	if (path.startsWith("/admin")) {
@@ -143,7 +172,7 @@ const App = () => {
 				setPath("/login");
 			}
 			return (
-				<PublicApp onUserLogin={handleUserLogin} onUserLogout={handleUserLogout} userRecord={userRecord} onNavigate={navigateTo} />
+				<PublicApp onUserLogin={handleUserLogin} onNavigate={navigateTo} />
 			);
 		}
 		return (
@@ -158,8 +187,8 @@ const App = () => {
 		);
 	}
 
-	// Public routes (/, /login, /register)
-	return <PublicApp onUserLogin={handleUserLogin} onUserLogout={handleUserLogout} userRecord={userRecord} onNavigate={navigateTo} />;
+	// Public routes (/login, /register)
+	return <PublicApp onUserLogin={handleUserLogin} onNavigate={navigateTo} />;
 };
 
 render(<App />, root);

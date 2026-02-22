@@ -5,6 +5,7 @@ export type ModelPricing = {
 	id: string;
 	input_price?: number; // per million tokens, USD
 	output_price?: number; // per million tokens, USD
+	shared?: boolean; // whether this model is exposed in shared mode
 };
 
 export type ModelEntry = {
@@ -16,7 +17,7 @@ export type ModelEntry = {
 	outputPrice?: number;
 };
 
-type ModelLike = { id?: unknown; input_price?: unknown; output_price?: unknown };
+type ModelLike = { id?: unknown; input_price?: unknown; output_price?: unknown; shared?: unknown };
 
 function toModelId(item: unknown): string {
 	if (item && typeof item === "object" && "id" in item) {
@@ -66,6 +67,7 @@ export function modelsToJson(models: string[] | ModelPricing[]): string {
 			const entry: ModelPricing = { id: m.id };
 			if (m.input_price != null) entry.input_price = m.input_price;
 			if (m.output_price != null) entry.output_price = m.output_price;
+			if (m.shared != null) entry.shared = m.shared;
 			return entry;
 		}),
 	);
@@ -122,12 +124,20 @@ export function extractModelPricings(
 			if (model && typeof model === "object") {
 				const ip = (model as ModelLike).input_price;
 				const op = (model as ModelLike).output_price;
+				const sh = (model as ModelLike).shared;
 				if (ip != null && Number(ip) > 0) entry.input_price = Number(ip);
 				if (op != null && Number(op) > 0) entry.output_price = Number(op);
+				if (sh != null) entry.shared = Boolean(sh);
 			}
 			return entry;
 		})
 		.filter((m): m is ModelPricing => m !== null);
+}
+
+export function extractSharedModelPricings(
+	channel: Pick<ChannelRow, "models_json">,
+): ModelPricing[] {
+	return extractModelPricings(channel).filter((m) => m.shared === true);
 }
 
 export function collectUniqueModelIds(

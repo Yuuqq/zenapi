@@ -5,6 +5,7 @@ type ParsedModel = {
 	id: string;
 	input_price: string;
 	output_price: string;
+	shared: boolean;
 };
 
 function parseModelLines(text: string): ParsedModel[] {
@@ -18,6 +19,7 @@ function parseModelLines(text: string): ParsedModel[] {
 				id: parts[0].trim(),
 				input_price: parts[1]?.trim() ?? "",
 				output_price: parts[2]?.trim() ?? "",
+				shared: parts[3]?.trim() === "1",
 			};
 		});
 }
@@ -25,8 +27,8 @@ function parseModelLines(text: string): ParsedModel[] {
 function rebuildModelsText(models: ParsedModel[]): string {
 	return models
 		.map((m) => {
-			if (m.input_price || m.output_price) {
-				return `${m.id}|${m.input_price}|${m.output_price}`;
+			if (m.input_price || m.output_price || m.shared) {
+				return `${m.id}|${m.input_price}|${m.output_price}|${m.shared ? "1" : "0"}`;
 			}
 			return m.id;
 		})
@@ -52,6 +54,12 @@ const ModelPricingEditor = ({
 	) => {
 		const updated = [...parsed];
 		updated[index] = { ...updated[index], [field]: value };
+		onModelsChange(rebuildModelsText(updated));
+	};
+
+	const updateShared = (index: number, value: boolean) => {
+		const updated = [...parsed];
+		updated[index] = { ...updated[index], shared: value };
 		onModelsChange(rebuildModelsText(updated));
 	};
 
@@ -102,6 +110,20 @@ const ModelPricingEditor = ({
 									)
 								}
 							/>
+							<label class="flex items-center gap-1 text-xs text-stone-400">
+								<input
+									type="checkbox"
+									class="h-3.5 w-3.5 rounded border-stone-300 text-amber-500 focus:ring-amber-300"
+									checked={m.shared}
+									onChange={(e) =>
+										updateShared(
+											i,
+											(e.currentTarget as HTMLInputElement).checked,
+										)
+									}
+								/>
+								共享
+							</label>
 						</div>
 					</div>
 				))}

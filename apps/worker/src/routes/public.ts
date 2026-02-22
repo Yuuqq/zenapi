@@ -1,17 +1,25 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { extractModelPricings } from "../services/channel-models";
+import { extractModelPricings, extractSharedModelPricings } from "../services/channel-models";
 import { listActiveChannels } from "../services/channel-repo";
 import { getSiteMode } from "../services/settings";
 
 const publicRoutes = new Hono<AppEnv>();
 
 /**
+ * Lightweight site info endpoint — always accessible.
+ */
+publicRoutes.get("/site-info", async (c) => {
+	const siteMode = await getSiteMode(c.env.DB);
+	return c.json({ site_mode: siteMode });
+});
+
+/**
  * Public models endpoint — controlled by site mode.
  *
  * personal → 403, not public
  * service  → show models with prices (users pay per usage)
- * shared   → show models, hide prices and channel names (shared pool)
+ * shared   → show shared-flagged models only, hide prices and channel names
  */
 publicRoutes.get("/models", async (c) => {
 	const siteMode = await getSiteMode(c.env.DB);
@@ -32,12 +40,12 @@ publicRoutes.get("/models", async (c) => {
 	>();
 
 	for (const channel of channels) {
-		const pricings = extractModelPricings(channel);
+		const pricings = siteMode === "shared"
+			? extractSharedModelPricings(channel)
+			: extractModelPricings(channel);
 		for (const p of pricings) {
 			const existing = modelMap.get(p.id) ?? [];
 			if (siteMode === "shared") {
-				// Shared mode: only show model availability, hide channel details and prices
-				// Add channel to count but mask name/prices
 				existing.push({
 					id: channel.id,
 					name: "共享渠道",
@@ -45,7 +53,6 @@ publicRoutes.get("/models", async (c) => {
 					output_price: null,
 				});
 			} else {
-				// Service mode: show full info including prices
 				existing.push({
 					id: channel.id,
 					name: channel.name,
