@@ -178,7 +178,7 @@ const App = () => {
 			// No token — redirect to login
 			history.replaceState(null, "", "/login");
 			setPath("/login");
-			return <PublicApp onUserLogin={handleUserLogin} onNavigate={navigateTo} />;
+			return <PublicApp onUserLogin={handleUserLogin} onNavigate={navigateTo} siteMode={siteMode} />;
 		}
 		if (!userChecked) {
 			// Token exists but still verifying — show nothing to avoid flash
@@ -188,7 +188,7 @@ const App = () => {
 			// Token was invalid — redirect to login
 			history.replaceState(null, "", "/login");
 			setPath("/login");
-			return <PublicApp onUserLogin={handleUserLogin} onNavigate={navigateTo} />;
+			return <PublicApp onUserLogin={handleUserLogin} onNavigate={navigateTo} siteMode={siteMode} />;
 		}
 		return (
 			<div class="min-h-screen bg-linear-to-b from-white via-stone-50 to-stone-100 font-['IBM_Plex_Sans'] text-stone-900 antialiased">
@@ -210,7 +210,7 @@ const App = () => {
 		return null;
 	}
 
-	return <PublicApp onUserLogin={handleUserLogin} onNavigate={navigateTo} />;
+	return <PublicApp onUserLogin={handleUserLogin} onNavigate={navigateTo} siteMode={siteMode} />;
 };
 
 render(<App />, root);

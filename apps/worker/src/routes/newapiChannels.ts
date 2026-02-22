@@ -28,6 +28,7 @@ import {
 	toNewApiChannel,
 	withNewApiDefaults,
 } from "../services/newapi";
+import { getSiteMode } from "../services/settings";
 import { generateToken } from "../utils/crypto";
 import { safeJsonParse } from "../utils/json";
 import { newApiFailure, newApiSuccess } from "../utils/newapi-response";
@@ -380,11 +381,28 @@ newapi.get("/test/:id", async (c) => {
 		return newApiFailure(c, 502, "渠道测试失败");
 	}
 
-	await updateChannelTestResult(c.env.DB, id, {
-		ok: true,
-		elapsed: result.elapsed,
-	});
+	const hasModels = result.models.length > 0;
+	const updateData: {
+		ok: boolean;
+		elapsed: number;
+		modelsJson?: string;
+		existingModelsJson?: string | null;
+		defaultShared?: boolean;
+	} = { ok: true, elapsed: result.elapsed };
 
+	if (hasModels && result.payload) {
+		const payloadData = Array.isArray(result.payload)
+			? result.payload
+			: ((result.payload as { data?: unknown[] })?.data ?? []);
+		updateData.modelsJson = JSON.stringify(payloadData);
+		updateData.existingModelsJson = channel.models_json ?? null;
+		const siteMode = await getSiteMode(c.env.DB);
+		if (siteMode === "shared") {
+			updateData.defaultShared = true;
+		}
+	}
+
+	await updateChannelTestResult(c.env.DB, id, updateData);
 	return newApiSuccess(c, undefined, "测试成功");
 });
 
@@ -411,10 +429,29 @@ newapi.post("/test", async (c) => {
 		});
 		return newApiFailure(c, 502, "渠道测试失败");
 	}
-	await updateChannelTestResult(c.env.DB, String(id), {
-		ok: true,
-		elapsed: result.elapsed,
-	});
+
+	const hasModels = result.models.length > 0;
+	const updateData: {
+		ok: boolean;
+		elapsed: number;
+		modelsJson?: string;
+		existingModelsJson?: string | null;
+		defaultShared?: boolean;
+	} = { ok: true, elapsed: result.elapsed };
+
+	if (hasModels && result.payload) {
+		const payloadData = Array.isArray(result.payload)
+			? result.payload
+			: ((result.payload as { data?: unknown[] })?.data ?? []);
+		updateData.modelsJson = JSON.stringify(payloadData);
+		updateData.existingModelsJson = channel.models_json ?? null;
+		const siteMode = await getSiteMode(c.env.DB);
+		if (siteMode === "shared") {
+			updateData.defaultShared = true;
+		}
+	}
+
+	await updateChannelTestResult(c.env.DB, String(id), updateData);
 	return newApiSuccess(c, undefined, "测试成功");
 });
 
@@ -439,11 +476,17 @@ newapi.get("/fetch_models/:id", async (c) => {
 		return newApiFailure(c, 502, "获取模型失败");
 	}
 
-	if (result.models.length > 0) {
+	if (result.models.length > 0 && result.payload) {
+		const payloadData = Array.isArray(result.payload)
+			? result.payload
+			: ((result.payload as { data?: unknown[] })?.data ?? []);
+		const siteMode = await getSiteMode(c.env.DB);
 		await updateChannelTestResult(c.env.DB, id, {
 			ok: true,
 			elapsed: result.elapsed,
-			models: result.models,
+			modelsJson: JSON.stringify(payloadData),
+			existingModelsJson: channel.models_json ?? null,
+			defaultShared: siteMode === "shared",
 		});
 	} else {
 		await updateChannelTestResult(c.env.DB, id, {

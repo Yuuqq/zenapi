@@ -11,9 +11,10 @@ const normalizePath = (path: string) => {
 type PublicAppProps = {
 	onUserLogin: (token: string) => void;
 	onNavigate: (path: string) => void;
+	siteMode: "personal" | "service" | "shared";
 };
 
-export const PublicApp = ({ onUserLogin, onNavigate }: PublicAppProps) => {
+export const PublicApp = ({ onUserLogin, onNavigate, siteMode }: PublicAppProps) => {
 	const [page, setPage] = useState<"login" | "register">(() => {
 		const normalized = normalizePath(window.location.pathname);
 		if (normalized === "/register") return "register";
@@ -110,7 +111,7 @@ export const PublicApp = ({ onUserLogin, onNavigate }: PublicAppProps) => {
 				</nav>
 				<UserRegisterView
 					notice={notice}
-					siteMode={"service"}
+					siteMode={siteMode}
 					onSubmit={handleRegister}
 					onGoLogin={() => navigate("login")}
 				/>

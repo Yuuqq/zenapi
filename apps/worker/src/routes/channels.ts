@@ -207,7 +207,10 @@ channels.post("/:id/test", async (c) => {
 		defaultShared?: boolean;
 	} = { ok: true, elapsed: result.elapsed };
 	if (hasModels && result.payload) {
-		updateData.modelsJson = JSON.stringify(result.payload);
+		const payloadData = Array.isArray(result.payload)
+			? result.payload
+			: ((result.payload as { data?: unknown[] })?.data ?? []);
+		updateData.modelsJson = JSON.stringify(payloadData);
 		updateData.existingModelsJson = channel.models_json ?? null;
 		if (siteMode === "shared") {
 			updateData.defaultShared = true;
