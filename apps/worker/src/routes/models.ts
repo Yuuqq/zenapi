@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { extractModelPricings } from "../services/channel-models";
+import { extractModelPricings, modelsToJson } from "../services/channel-models";
 import { listActiveChannels } from "../services/channel-repo";
 import { listAllAliases } from "../services/model-aliases";
+import { jsonError } from "../utils/http";
 
 const models = new Hono<AppEnv>();
 
@@ -168,6 +169,63 @@ models.get("/", async (c) => {
 	}
 
 	return c.json({ models: results });
+});
+
+/**
+ * Batch-update prices for a single model across multiple channels.
+ */
+models.put("/prices/:modelId", async (c) => {
+	const modelId = c.req.param("modelId");
+	const body = await c.req.json().catch(() => null);
+	if (!body || !Array.isArray(body.prices)) {
+		return jsonError(c, 400, "body must contain prices array", "invalid_body");
+	}
+
+	const db = c.env.DB;
+	const stmts: ReturnType<typeof db.prepare>[] = [];
+	const now = new Date().toISOString();
+
+	for (const item of body.prices) {
+		if (!item.channel_id || typeof item.channel_id !== "string") {
+			return jsonError(c, 400, "each price entry must have a channel_id", "invalid_body");
+		}
+
+		const row = await db
+			.prepare("SELECT models_json FROM channels WHERE id = ?")
+			.bind(item.channel_id)
+			.first<{ models_json: string | null }>();
+
+		if (!row) {
+			return jsonError(c, 404, `channel ${item.channel_id} not found`, "not_found");
+		}
+
+		const pricings = extractModelPricings({ models_json: row.models_json });
+		const entry = pricings.find((p) => p.id === modelId);
+		if (!entry) {
+			return jsonError(
+				c,
+				404,
+				`model ${modelId} not found in channel ${item.channel_id}`,
+				"not_found",
+			);
+		}
+
+		entry.input_price = item.input_price != null ? Number(item.input_price) : entry.input_price;
+		entry.output_price = item.output_price != null ? Number(item.output_price) : entry.output_price;
+
+		const updatedJson = modelsToJson(pricings);
+		stmts.push(
+			db
+				.prepare("UPDATE channels SET models_json = ?, updated_at = ? WHERE id = ?")
+				.bind(updatedJson, now, item.channel_id),
+		);
+	}
+
+	if (stmts.length > 0) {
+		await db.batch(stmts);
+	}
+
+	return c.json({ ok: true });
 });
 
 export default models;

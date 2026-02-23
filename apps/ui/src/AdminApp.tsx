@@ -596,6 +596,25 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 		[apiFetch, loadModels],
 	);
 
+	const handlePriceSave = useCallback(
+		async (
+			modelId: string,
+			prices: Array<{ channel_id: string; input_price: number; output_price: number }>,
+		) => {
+			try {
+				await apiFetch(`/api/models/prices/${encodeURIComponent(modelId)}`, {
+					method: "PUT",
+					body: JSON.stringify({ prices }),
+				});
+				await loadModels();
+				setNotice("价格已保存");
+			} catch (error) {
+				setNotice((error as Error).message);
+			}
+		},
+		[apiFetch, loadModels],
+	);
+
 	const handleMonitoringLoaded = useCallback(
 		(monitoring: MonitoringData) => {
 			setData((prev) => ({ ...prev, monitoring }));
@@ -742,7 +761,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 			);
 		}
 		if (activeTab === "models") {
-			return <ModelsView models={data.models} onAliasSave={handleAliasSave} />;
+			return <ModelsView models={data.models} onAliasSave={handleAliasSave} onPriceSave={handlePriceSave} />;
 		}
 		if (activeTab === "tokens") {
 			return (

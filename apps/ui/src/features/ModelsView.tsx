@@ -8,6 +8,10 @@ type ModelsViewProps = {
 		modelId: string,
 		aliases: Array<{ alias: string; is_primary: boolean }>,
 	) => Promise<void>;
+	onPriceSave?: (
+		modelId: string,
+		prices: Array<{ channel_id: string; input_price: number; output_price: number }>,
+	) => Promise<void>;
 };
 
 const MiniSparkline = ({
@@ -71,8 +75,9 @@ function formatPrice(n: number | null): string {
 const ModelCard = ({
 	model,
 	onAliasClick,
+	onPriceClick,
 	compact,
-}: { model: ModelItem; onAliasClick?: () => void; compact?: boolean }) => {
+}: { model: ModelItem; onAliasClick?: () => void; onPriceClick?: () => void; compact?: boolean }) => {
 	const showSubtitle = !compact && model.display_name !== model.id;
 	return (
 		<div class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
@@ -93,6 +98,15 @@ const ModelCard = ({
 							onClick={onAliasClick}
 						>
 							别名
+						</button>
+					)}
+					{onPriceClick && (
+						<button
+							type="button"
+							class="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-xs text-stone-500 transition-colors hover:border-emerald-300 hover:text-emerald-600"
+							onClick={onPriceClick}
+						>
+							定价
 						</button>
 					)}
 					<span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-500">
@@ -321,6 +335,164 @@ const AliasEditModal = ({
 	);
 };
 
+const PriceEditModal = ({
+	modelId,
+	channels,
+	onSave,
+	onClose,
+}: {
+	modelId: string;
+	channels: Array<{ id: string; name: string; input_price: number | null; output_price: number | null }>;
+	onSave: (prices: Array<{ channel_id: string; input_price: number; output_price: number }>) => Promise<void>;
+	onClose: () => void;
+}) => {
+	const [prices, setPrices] = useState(() =>
+		channels.map((ch) => ({
+			channel_id: ch.id,
+			name: ch.name,
+			input_price: ch.input_price != null ? String(ch.input_price) : "",
+			output_price: ch.output_price != null ? String(ch.output_price) : "",
+		})),
+	);
+	const [batchInput, setBatchInput] = useState("");
+	const [batchOutput, setBatchOutput] = useState("");
+	const [saving, setSaving] = useState(false);
+
+	const handleFieldChange = (index: number, field: "input_price" | "output_price", value: string) => {
+		setPrices((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
+	};
+
+	const handleBatchApply = () => {
+		setPrices((prev) =>
+			prev.map((p) => ({
+				...p,
+				input_price: batchInput !== "" ? batchInput : p.input_price,
+				output_price: batchOutput !== "" ? batchOutput : p.output_price,
+			})),
+		);
+	};
+
+	const handleSave = async () => {
+		setSaving(true);
+		try {
+			const payload = prices.map((p) => ({
+				channel_id: p.channel_id,
+				input_price: p.input_price !== "" ? Number(p.input_price) : 0,
+				output_price: p.output_price !== "" ? Number(p.output_price) : 0,
+			}));
+			await onSave(payload);
+			onClose();
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	return (
+		<div class="fixed inset-0 z-50 flex items-end justify-center bg-stone-900/40 px-0 py-0 md:items-center md:px-4 md:py-8">
+			<div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-stone-200 bg-white p-6 shadow-2xl md:rounded-2xl">
+				<div class="flex items-start justify-between gap-3">
+					<div>
+						<h3 class="mb-1 font-['Space_Grotesk'] text-lg tracking-tight text-stone-900">
+							编辑价格
+						</h3>
+						<p class="break-all text-xs text-stone-500">
+							模型：{modelId}
+						</p>
+					</div>
+					<button
+						type="button"
+						class="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-50"
+						onClick={onClose}
+					>
+						关闭
+					</button>
+				</div>
+
+				<div class="mt-4 space-y-2">
+					<div class="grid grid-cols-[1fr_5rem_5rem] gap-2 text-xs font-medium text-stone-400">
+						<span>渠道</span>
+						<span class="text-center">输入价格</span>
+						<span class="text-center">输出价格</span>
+					</div>
+					{prices.map((p, index) => (
+						<div
+							key={p.channel_id}
+							class="grid grid-cols-[1fr_5rem_5rem] items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2"
+						>
+							<span class="truncate text-sm text-stone-700">{p.name}</span>
+							<input
+								type="number"
+								step="any"
+								class="w-full rounded-md border border-stone-200 bg-white px-2 py-1 text-center text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+								value={p.input_price}
+								onInput={(e) =>
+									handleFieldChange(index, "input_price", (e.currentTarget as HTMLInputElement)?.value ?? "")
+								}
+							/>
+							<input
+								type="number"
+								step="any"
+								class="w-full rounded-md border border-stone-200 bg-white px-2 py-1 text-center text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+								value={p.output_price}
+								onInput={(e) =>
+									handleFieldChange(index, "output_price", (e.currentTarget as HTMLInputElement)?.value ?? "")
+								}
+							/>
+						</div>
+					))}
+				</div>
+
+				<div class="mt-4 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-3">
+					<p class="mb-2 text-xs font-medium text-stone-500">批量设置</p>
+					<div class="flex items-center gap-2">
+						<input
+							type="number"
+							step="any"
+							class="w-24 rounded-md border border-stone-200 bg-white px-2 py-1 text-center text-sm text-stone-900 placeholder:text-stone-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+							placeholder="输入价格"
+							value={batchInput}
+							onInput={(e) => setBatchInput((e.currentTarget as HTMLInputElement)?.value ?? "")}
+						/>
+						<input
+							type="number"
+							step="any"
+							class="w-24 rounded-md border border-stone-200 bg-white px-2 py-1 text-center text-sm text-stone-900 placeholder:text-stone-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+							placeholder="输出价格"
+							value={batchOutput}
+							onInput={(e) => setBatchOutput((e.currentTarget as HTMLInputElement)?.value ?? "")}
+						/>
+						<button
+							type="button"
+							class="rounded-lg border border-stone-200 bg-white px-3 py-1 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50"
+							onClick={handleBatchApply}
+						>
+							应用全部
+						</button>
+					</div>
+				</div>
+
+				<div class="mt-5 flex items-center justify-end gap-2">
+					<button
+						type="button"
+						class="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50"
+						onClick={onClose}
+					>
+						取消
+					</button>
+					<button
+						type="button"
+						class="rounded-lg border border-stone-900 bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-800 disabled:opacity-60"
+						disabled={saving}
+						onClick={handleSave}
+					>
+						{saving ? "保存中..." : "保存"}
+					</button>
+				</div>
+			</div>
+		</div>
+	);
+};
+
 const pageSizeOptions = [12, 24, 48];
 
 /** Merge models that share the same display_name into single virtual cards. */
@@ -397,11 +569,12 @@ function mergeByDisplayName(models: ModelItem[]): ModelItem[] {
 	return merged;
 }
 
-export const ModelsView = ({ models, onAliasSave }: ModelsViewProps) => {
+export const ModelsView = ({ models, onAliasSave, onPriceSave }: ModelsViewProps) => {
 	const [search, setSearch] = useState("");
 	const [pageSize, setPageSize] = useState(12);
 	const [page, setPage] = useState(1);
 	const [aliasModelId, setAliasModelId] = useState<string | null>(null);
+	const [priceModelId, setPriceModelId] = useState<string | null>(null);
 	const [primaryMode, setPrimaryMode] = useState(false);
 
 	const displayModels = useMemo(
@@ -447,6 +620,10 @@ export const ModelsView = ({ models, onAliasSave }: ModelsViewProps) => {
 
 	const aliasModel = aliasModelId
 		? models.find((m) => m.id === aliasModelId) ?? null
+		: null;
+
+	const priceModel = priceModelId
+		? models.find((m) => m.id === priceModelId) ?? null
 		: null;
 
 	return (
@@ -497,6 +674,11 @@ export const ModelsView = ({ models, onAliasSave }: ModelsViewProps) => {
 								onAliasClick={
 									onAliasSave && !primaryMode
 										? () => setAliasModelId(model.id)
+										: undefined
+								}
+								onPriceClick={
+									onPriceSave && !primaryMode
+										? () => setPriceModelId(model.id)
 										: undefined
 								}
 							/>
@@ -572,6 +754,14 @@ export const ModelsView = ({ models, onAliasSave }: ModelsViewProps) => {
 					initialAliases={aliasModel.aliases}
 					onSave={(aliases) => onAliasSave(aliasModel.id, aliases)}
 					onClose={() => setAliasModelId(null)}
+				/>
+			)}
+			{priceModel && onPriceSave && (
+				<PriceEditModal
+					modelId={priceModel.id}
+					channels={priceModel.channels}
+					onSave={(prices) => onPriceSave(priceModel.id, prices)}
+					onClose={() => setPriceModelId(null)}
 				/>
 			)}
 		</div>
