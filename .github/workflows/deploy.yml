@@ -185,6 +185,10 @@ jobs:
           elif [[ "$apply_migrations" == "auto" ]]; then
             if [[ "$event" == "push" && "$migrations_changed" == "true" ]]; then
               should_migrate="true"
+            elif [[ "$event" != "push" ]]; then
+              # 手动触发（workflow_dispatch/repository_dispatch）无法可靠判断迁移文件变更，
+              # 默认执行迁移以避免首次部署/迁移遗漏导致运行时报错。
+              should_migrate="true"
             fi
           fi
 
@@ -360,6 +364,7 @@ jobs:
         run: bunx wrangler telemetry disable
 
       - name: Create or verify D1 Database
+        id: d1
         if: needs.check-config.outputs.deploy_worker == 'true' || needs.check-config.outputs.deploy_ui == 'true' || needs.check-config.outputs.should_migrate == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -372,6 +377,7 @@ jobs:
           if [ -n "$EXISTING_DB" ]; then
             echo "✅ 找到现有 D1 数据库: $EXISTING_DB"
             DATABASE_ID=$EXISTING_DB
+            echo "db_created=false" >> $GITHUB_OUTPUT
           else
             CREATE_OUTPUT=$(bunx wrangler d1 create api-worker --config apps/worker/wrangler.toml 2>&1)
 
@@ -389,13 +395,14 @@ jobs:
                 exit 1
               fi
             fi
+            echo "db_created=true" >> $GITHUB_OUTPUT
           fi
 
           sed -i -E "s/(database_id = \")([^\"]+)(\")/\\1$DATABASE_ID\\3/" apps/worker/wrangler.toml
           echo "database_id=$DATABASE_ID" >> $GITHUB_ENV
 
       - name: Apply D1 migrations (remote)
-        if: needs.check-config.outputs.should_migrate == 'true'
+        if: needs.check-config.outputs.should_migrate == 'true' || steps.d1.outputs.db_created == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
