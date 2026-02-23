@@ -560,7 +560,7 @@ proxy.all("/*", tokenAuth, async (c) => {
 				completionTokens: 0,
 			};
 			const cost = price
-				? calculateCost(price, normalized.promptTokens, normalized.completionTokens)
+				? calculateCost(price, normalized.promptTokens, normalized.completionTokens, normalized.totalTokens)
 				: 0;
 			const resolvedFirstTokenLatencyMs =
 				firstTokenLatencyMs ?? (isStream ? null : latencyMs);
@@ -642,7 +642,13 @@ proxy.all("/*", tokenAuth, async (c) => {
 					logUsage("stream", usageValue, source);
 					return record(usageValue, streamUsage.firstTokenLatencyMs);
 				})
-				.catch(() => undefined);
+				.catch(async () => {
+					// SSE parsing failed (stream interrupted, etc.) — still record with whatever we have
+					try {
+						logUsage("stream-fallback", immediateUsage, immediateSource);
+						await record(immediateUsage, null);
+					} catch { /* truly lost */ }
+				});
 			if (executionCtx?.waitUntil) {
 				executionCtx.waitUntil(task);
 			} else {

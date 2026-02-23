@@ -329,7 +329,7 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 				completionTokens: 0,
 			};
 			const cost = price
-				? calculateCost(price, normalized.promptTokens, normalized.completionTokens)
+				? calculateCost(price, normalized.promptTokens, normalized.completionTokens, normalized.totalTokens)
 				: 0;
 			await recordUsage(c.env.DB, {
 				tokenId: tokenRecord.id,
@@ -369,7 +369,12 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 					const usage = headerUsage ?? streamUsage.usage;
 					return recordFn(usage, streamUsage.firstTokenLatencyMs);
 				})
-				.catch(() => undefined);
+				.catch(async () => {
+					// SSE parsing failed (stream interrupted, etc.) — still record with whatever we have
+					try {
+						await recordFn(headerUsage, null);
+					} catch { /* truly lost */ }
+				});
 			if (executionCtx?.waitUntil) {
 				executionCtx.waitUntil(task);
 			} else {
