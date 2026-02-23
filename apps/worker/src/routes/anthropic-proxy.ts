@@ -16,7 +16,7 @@ import { jsonError } from "../utils/http";
 import { safeJsonParse } from "../utils/json";
 import { parseApiKeys, shuffleArray } from "../utils/keys";
 import { isRetryableStatus, sleep } from "../utils/retry";
-import { normalizeBaseUrl } from "../utils/url";
+import { cfSafeUrl, normalizeBaseUrl } from "../utils/url";
 import {
 	type NormalizedUsage,
 	normalizeUsage,
@@ -155,7 +155,7 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 					if (apiFormat === "anthropic") {
 						// Pass-through: send original Anthropic body directly
 						const baseUrl = normalizeBaseUrl(channel.base_url);
-						const target = `${baseUrl}/v1/messages`;
+						const target = cfSafeUrl(`${baseUrl}/v1/messages`);
 						const headers = new Headers();
 						headers.set("x-api-key", String(apiKey));
 						headers.set(
@@ -179,7 +179,7 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 					} else if (apiFormat === "openai") {
 						// Convert Anthropic -> OpenAI, send to OpenAI upstream
 						const baseUrl = channel.base_url.replace(/\/+$/, "");
-						const target = `${baseUrl}/chat/completions`;
+						const target = cfSafeUrl(`${baseUrl}/chat/completions`);
 						const headers = new Headers();
 						headers.set("Authorization", `Bearer ${apiKey}`);
 						headers.set("content-type", "application/json");
@@ -226,7 +226,7 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 						}
 					} else {
 						// custom: forward as-is
-						const target = channel.base_url;
+						const target = cfSafeUrl(channel.base_url);
 						const headers = new Headers();
 						headers.set("Authorization", `Bearer ${apiKey}`);
 						headers.set("x-api-key", String(apiKey));

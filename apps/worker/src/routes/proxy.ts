@@ -26,7 +26,7 @@ import { parseApiKeys, shuffleArray } from "../utils/keys";
 import { isRetryableStatus, sleep } from "../utils/retry";
 import { resolveChannelRoute } from "../services/channel-route";
 import { resolveModelNames, loadAliasMap } from "../services/model-aliases";
-import { normalizeBaseUrl } from "../utils/url";
+import { cfSafeUrl, normalizeBaseUrl } from "../utils/url";
 import {
 	type NormalizedUsage,
 	parseUsageFromHeaders,
@@ -151,7 +151,7 @@ export function buildChannelRequest(
 
 	if (apiFormat === "anthropic") {
 		const baseUrl = normalizeBaseUrl(channel.base_url);
-		const target = `${baseUrl}/v1/messages`;
+		const target = cfSafeUrl(`${baseUrl}/v1/messages`);
 		headers.set("x-api-key", String(effectiveKey));
 		headers.set("anthropic-version", "2023-06-01");
 		headers.set("content-type", "application/json");
@@ -168,7 +168,7 @@ export function buildChannelRequest(
 
 	if (apiFormat === "custom") {
 		// For custom format, base_url IS the full target URL
-		const target = `${channel.base_url}${querySuffix}`;
+		const target = cfSafeUrl(`${channel.base_url}${querySuffix}`);
 		headers.set("Authorization", `Bearer ${effectiveKey}`);
 		headers.set("x-api-key", String(effectiveKey));
 
@@ -189,7 +189,7 @@ export function buildChannelRequest(
 	// base_url already includes version path (e.g. /v1), so strip /v1 from incoming path
 	const baseUrl = channel.base_url.replace(/\/+$/, "");
 	const subPath = targetPath.replace(/^\/v1\b/, "");
-	const target = `${baseUrl}${subPath}${querySuffix}`;
+	const target = cfSafeUrl(`${baseUrl}${subPath}${querySuffix}`);
 	headers.set("Authorization", `Bearer ${effectiveKey}`);
 	headers.set("x-api-key", String(effectiveKey));
 	return { target, headers, body: requestText || undefined };
@@ -466,7 +466,7 @@ proxy.all("/*", tokenAuth, async (c) => {
 						fallbackSubPath
 					) {
 						const strippedBase = normalizeBaseUrl(channel.base_url);
-						const fallbackTarget = `${strippedBase}${fallbackSubPath}${querySuffix}`;
+						const fallbackTarget = cfSafeUrl(`${strippedBase}${fallbackSubPath}${querySuffix}`);
 						const fallbackBody = mutatedStreamOptions
 							? originalRequestText
 							: channelRequestText;
