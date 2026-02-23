@@ -13,9 +13,9 @@ on:
         required: false
         default: "auto"
       deploy_action:
-        description: "部署动作：update/init（默认 update）"
+        description: "部署动作：update/init（默认 c）"
         required: false
-        default: "init"
+        default: "update"
       deploy_target:
         description: "部署目标：frontend/backend/both/auto（默认 auto）"
         required: false
