@@ -1,5 +1,6 @@
-import { useState } from "hono/jsx/dom";
+import { useEffect, useMemo, useState } from "hono/jsx/dom";
 import type { ModelItem } from "../core/types";
+import { buildPageItems } from "../core/utils";
 
 type ModelsViewProps = {
 	models: ModelItem[];
@@ -143,14 +144,43 @@ const ModelCard = ({ model }: { model: ModelItem }) => (
 	</div>
 );
 
+const pageSizeOptions = [12, 24, 48];
+
 export const ModelsView = ({ models }: ModelsViewProps) => {
 	const [search, setSearch] = useState("");
+	const [pageSize, setPageSize] = useState(12);
+	const [page, setPage] = useState(1);
 
 	const filtered = search
 		? models.filter((m) =>
 				m.id.toLowerCase().includes(search.toLowerCase()),
 			)
 		: models;
+
+	const total = filtered.length;
+	const totalPages = useMemo(
+		() => Math.max(1, Math.ceil(total / pageSize)),
+		[total, pageSize],
+	);
+
+	// Reset page when search or pageSize changes
+	useEffect(() => {
+		setPage(1);
+	}, [search, pageSize]);
+
+	useEffect(() => {
+		setPage((prev) => Math.min(prev, totalPages));
+	}, [totalPages]);
+
+	const pagedModels = useMemo(() => {
+		const start = (page - 1) * pageSize;
+		return filtered.slice(start, start + pageSize);
+	}, [filtered, page, pageSize]);
+
+	const pageItems = useMemo(
+		() => buildPageItems(page, totalPages),
+		[page, totalPages],
+	);
 
 	return (
 		<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-lg">
@@ -179,11 +209,75 @@ export const ModelsView = ({ models }: ModelsViewProps) => {
 					{models.length === 0 ? "暂无模型数据" : "未找到匹配的模型"}
 				</div>
 			) : (
-				<div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-					{filtered.map((model) => (
-						<ModelCard key={model.id} model={model} />
-					))}
-				</div>
+				<>
+					<div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+						{pagedModels.map((model) => (
+							<ModelCard key={model.id} model={model} />
+						))}
+					</div>
+					{/* Pagination */}
+					<div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
+						<div class="flex flex-wrap items-center gap-2">
+							<span class="text-xs text-stone-500">
+								共 {total} 条 · {totalPages} 页
+							</span>
+							<button
+								class="h-10 w-10 md:h-8 md:w-8 rounded-full border border-stone-200 bg-white text-xs font-semibold text-stone-600 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:text-stone-900 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
+								type="button"
+								disabled={page <= 1}
+								onClick={() => setPage(Math.max(1, page - 1))}
+							>
+								&lt;
+							</button>
+							{pageItems.map((item, index) =>
+								item === "ellipsis" ? (
+									<span class="px-2 text-xs text-stone-400" key={`e-${index}`}>
+										...
+									</span>
+								) : (
+									<button
+										class={`h-10 min-w-10 md:h-8 md:min-w-8 rounded-full border px-3 text-xs font-semibold transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+											item === page
+												? "border-stone-900 bg-stone-900 text-white shadow-md"
+												: "border-stone-200 bg-white text-stone-600 hover:-translate-y-0.5 hover:text-stone-900 hover:shadow-md"
+										}`}
+										type="button"
+										key={item}
+										onClick={() => setPage(item)}
+									>
+										{item}
+									</button>
+								),
+							)}
+							<button
+								class="h-10 w-10 md:h-8 md:w-8 rounded-full border border-stone-200 bg-white text-xs font-semibold text-stone-600 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:text-stone-900 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
+								type="button"
+								disabled={page >= totalPages}
+								onClick={() => setPage(Math.min(totalPages, page + 1))}
+							>
+								&gt;
+							</button>
+						</div>
+						<label class="flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs text-stone-500">
+							每页条数
+							<select
+								class="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-xs text-stone-700 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+								value={pageSize}
+								onChange={(event) => {
+									setPageSize(
+										Number((event.currentTarget as HTMLSelectElement).value),
+									);
+								}}
+							>
+								{pageSizeOptions.map((size) => (
+									<option key={size} value={size}>
+										{size}
+									</option>
+								))}
+							</select>
+						</label>
+					</div>
+				</>
 			)}
 		</div>
 	);

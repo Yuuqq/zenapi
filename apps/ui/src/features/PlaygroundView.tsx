@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "hono/jsx/dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "hono/jsx/dom";
 import { apiBase } from "../core/constants";
 
 type ChatMessage = {
@@ -13,6 +13,8 @@ type PlaygroundViewProps = {
 export const PlaygroundView = ({ token }: PlaygroundViewProps) => {
 	const [models, setModels] = useState<string[]>([]);
 	const [selectedModel, setSelectedModel] = useState("");
+	const [modelSearch, setModelSearch] = useState("");
+	const [isModelDropdownOpen, setModelDropdownOpen] = useState(false);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [input, setInput] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +27,24 @@ export const PlaygroundView = ({ token }: PlaygroundViewProps) => {
 	} | null>(null);
 	const [latencyMs, setLatencyMs] = useState<number | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const modelDropdownRef = useRef<HTMLDivElement>(null);
+
+	const filteredModels = useMemo(() => {
+		if (!modelSearch) return models;
+		const lower = modelSearch.toLowerCase();
+		return models.filter((m) => m.toLowerCase().includes(lower));
+	}, [models, modelSearch]);
+
+	// Close dropdown on outside click
+	useEffect(() => {
+		const handleClickOutside = (e: MouseEvent) => {
+			if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+				setModelDropdownOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, []);
 
 	// Load available models
 	useEffect(() => {
@@ -181,29 +201,54 @@ export const PlaygroundView = ({ token }: PlaygroundViewProps) => {
 	);
 
 	return (
-		<div class="flex flex-col gap-4">
+		<div class="flex flex-col" style="height: calc(100vh - 180px); min-height: 400px;">
 			{/* Header */}
-			<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-lg">
+			<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-lg shrink-0">
 				<h2 class="text-base font-semibold text-stone-800">对话测试</h2>
 				<div class="flex items-center gap-3">
-					<select
-						class="h-9 rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm text-stone-700 outline-none transition-colors focus:border-stone-400"
-						value={selectedModel}
-						onChange={(e) =>
-							setSelectedModel(
-								(e.target as HTMLSelectElement).value,
-							)
-						}
-					>
-						{models.length === 0 && (
-							<option value="">无可用模型</option>
+					{/* Searchable model selector */}
+					<div class="relative" ref={modelDropdownRef}>
+						<input
+							class="h-9 w-56 rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm text-stone-700 placeholder:text-stone-400 outline-none transition-colors focus:border-stone-400"
+							type="text"
+							placeholder="搜索模型..."
+							value={isModelDropdownOpen ? modelSearch : (selectedModel || modelSearch)}
+							onFocus={() => {
+								setModelDropdownOpen(true);
+								setModelSearch("");
+							}}
+							onInput={(e) => {
+								setModelSearch((e.target as HTMLInputElement).value);
+								setModelDropdownOpen(true);
+							}}
+						/>
+						{isModelDropdownOpen && (
+							<div class="absolute left-0 top-full z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-stone-200 bg-white shadow-lg">
+								{filteredModels.length === 0 ? (
+									<div class="px-3 py-2 text-xs text-stone-400">
+										{models.length === 0 ? "无可用模型" : "未找到匹配模型"}
+									</div>
+								) : (
+									filteredModels.map((m) => (
+										<button
+											key={m}
+											type="button"
+											class={`block w-full px-3 py-2 text-left text-sm transition-colors hover:bg-stone-100 ${
+												m === selectedModel ? "bg-stone-50 font-medium text-stone-900" : "text-stone-700"
+											}`}
+											onClick={() => {
+												setSelectedModel(m);
+												setModelSearch("");
+												setModelDropdownOpen(false);
+											}}
+										>
+											{m}
+										</button>
+									))
+								)}
+							</div>
 						)}
-						{models.map((m) => (
-							<option key={m} value={m}>
-								{m}
-							</option>
-						))}
-					</select>
+					</div>
 					<button
 						type="button"
 						class="h-9 rounded-full border border-stone-200 px-4 text-xs font-medium text-stone-600 transition-all duration-200 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-2"
@@ -214,11 +259,11 @@ export const PlaygroundView = ({ token }: PlaygroundViewProps) => {
 				</div>
 			</div>
 
-			{/* Messages Area */}
-			<div class="rounded-2xl border border-stone-200 bg-white shadow-lg">
-				<div class="max-h-[60vh] min-h-[300px] overflow-y-auto p-5">
+			{/* Messages Area - flex-1 to fill remaining space */}
+			<div class="mt-4 flex flex-1 flex-col rounded-2xl border border-stone-200 bg-white shadow-lg overflow-hidden">
+				<div class="flex-1 overflow-y-auto p-5">
 					{messages.length === 0 && !streamingContent && (
-						<div class="flex h-[250px] items-center justify-center">
+						<div class="flex h-full min-h-[200px] items-center justify-center">
 							<p class="text-sm text-stone-400">
 								选择模型并发送消息开始对话
 							</p>
@@ -271,14 +316,14 @@ export const PlaygroundView = ({ token }: PlaygroundViewProps) => {
 
 				{/* Error */}
 				{error && (
-					<div class="border-t border-stone-200 px-5 py-3">
+					<div class="border-t border-stone-200 px-5 py-3 shrink-0">
 						<p class="text-xs text-red-500">{error}</p>
 					</div>
 				)}
 
 				{/* Usage Stats */}
 				{(usage || latencyMs !== null) && (
-					<div class="border-t border-stone-200 px-5 py-2.5">
+					<div class="border-t border-stone-200 px-5 py-2.5 shrink-0">
 						<p class="text-xs text-stone-400">
 							{usage &&
 								`Tokens: ${usage.total_tokens} (prompt ${usage.prompt_tokens} + completion ${usage.completion_tokens})`}
@@ -289,7 +334,7 @@ export const PlaygroundView = ({ token }: PlaygroundViewProps) => {
 				)}
 
 				{/* Input Area */}
-				<div class="border-t border-stone-200 p-4">
+				<div class="border-t border-stone-200 p-4 shrink-0">
 					<div class="flex gap-3">
 						<textarea
 							class="flex-1 resize-none rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm text-stone-800 placeholder-stone-400 outline-none transition-colors focus:border-stone-400"

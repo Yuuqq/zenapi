@@ -65,8 +65,8 @@ export const UsageView = ({ usage, onRefresh }: UsageViewProps) => {
 	);
 
 	return (
-		<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-lg">
-			<div class="flex flex-wrap items-center justify-between gap-3">
+		<div class="flex flex-col rounded-2xl border border-stone-200 bg-white p-5 shadow-lg" style="height: calc(100vh - 180px); min-height: 500px;">
+			<div class="flex flex-wrap items-center justify-between gap-3 shrink-0">
 				<div>
 					<h3 class="mb-1 font-['Space_Grotesk'] text-lg tracking-tight text-stone-900">
 						使用日志
@@ -85,8 +85,8 @@ export const UsageView = ({ usage, onRefresh }: UsageViewProps) => {
 					</button>
 				</div>
 			</div>
-			<div class="mt-4 overflow-hidden rounded-xl border border-stone-200">
-				<div class="h-[520px] overflow-auto">
+			<div class="mt-4 flex-1 overflow-hidden rounded-xl border border-stone-200">
+				<div class="h-full overflow-auto">
 					<table class="min-w-[1100px] w-full border-collapse text-sm">
 						<thead>
 							<tr>
@@ -184,7 +184,7 @@ export const UsageView = ({ usage, onRefresh }: UsageViewProps) => {
 					</table>
 				</div>
 			</div>
-			<div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
+			<div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500 shrink-0">
 				<div class="flex flex-wrap items-center gap-2">
 					<span class="text-xs text-stone-500">共 {totalPages} 页</span>
 					<button

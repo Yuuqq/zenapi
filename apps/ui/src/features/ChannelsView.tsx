@@ -95,138 +95,140 @@ const ModelPricingEditor = ({
 	};
 
 	return (
-		<div class="mt-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
-			<div class="mb-2 flex items-center justify-between flex-wrap gap-2">
-				<p class="text-xs font-medium uppercase tracking-widest text-stone-400">
-					模型定价 & 共享设置
-				</p>
-				<div class="flex items-center gap-1.5 flex-wrap">
-					<span class="text-xs text-stone-400">
-						{enabledCount}/{parsed.length} 启用
-					</span>
-					<button
-						type="button"
-						class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-							allEnabled
-								? "bg-stone-200 text-stone-500"
-								: "bg-blue-100 text-blue-700 hover:bg-blue-200"
-						}`}
-						onClick={() => toggleAllEnabled(true)}
-						disabled={allEnabled}
-					>
-						全部启用
-					</button>
-					<button
-						type="button"
-						class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-							noneEnabled
-								? "bg-stone-200 text-stone-500"
-								: "bg-stone-100 text-stone-600 hover:bg-stone-200"
-						}`}
-						onClick={() => toggleAllEnabled(false)}
-						disabled={noneEnabled}
-					>
-						全部禁用
-					</button>
-					<span class="text-xs text-stone-300">|</span>
-					<span class="text-xs text-stone-400">
-						{sharedCount}/{parsed.length} 共享
-					</span>
-					<button
-						type="button"
-						class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-							allShared
-								? "bg-stone-200 text-stone-500"
-								: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-						}`}
-						onClick={() => toggleAll(true)}
-						disabled={allShared}
-					>
-						全部共享
-					</button>
-					<button
-						type="button"
-						class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-							noneShared
-								? "bg-stone-200 text-stone-500"
-								: "bg-stone-100 text-stone-600 hover:bg-stone-200"
-						}`}
-						onClick={() => toggleAll(false)}
-						disabled={noneShared}
-					>
-						全部取消
-					</button>
-				</div>
-			</div>
-			<div class="space-y-2">
-				{parsed.map((m, i) => (
-					<div
-						key={`${m.id}-${i}`}
-						class={`flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 ${!m.enabled ? "opacity-50" : ""}`}
-					>
-						<div class="flex min-w-0 flex-1 items-center gap-2">
-							<button
-								type="button"
-								class={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
-									m.enabled
-										? "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
-										: "border-stone-200 bg-white text-stone-400 hover:bg-stone-100 hover:text-stone-600"
-								}`}
-								onClick={() => updateEnabled(i, !m.enabled)}
-							>
-								{m.enabled ? "启用" : "禁用"}
-							</button>
-							<button
-								type="button"
-								class={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
-									m.shared
-										? "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-										: "border-stone-200 bg-white text-stone-400 hover:bg-stone-100 hover:text-stone-600"
-								}`}
-								onClick={() => updateShared(i, !m.shared)}
-							>
-								{m.shared ? "共享" : "私有"}
-							</button>
-							<span class={`min-w-0 truncate text-xs font-medium ${m.enabled ? "text-stone-700" : "text-stone-400 line-through"}`}>
-								{m.id}
-							</span>
-						</div>
-						<div class="flex items-center gap-1.5">
-							<label class="text-xs text-stone-400">输入</label>
-							<input
-								class="w-20 rounded border border-stone-200 bg-white px-2 py-1 text-xs text-stone-900 placeholder:text-stone-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-200"
-								type="number"
-								min="0"
-								step="0.01"
-								placeholder="0"
-								value={m.input_price}
-								onInput={(e) =>
-									updatePrice(
-										i,
-										"input_price",
-										(e.currentTarget as HTMLInputElement).value,
-									)
-								}
-							/>
-							<label class="text-xs text-stone-400">输出</label>
-							<input
-								class="w-20 rounded border border-stone-200 bg-white px-2 py-1 text-xs text-stone-900 placeholder:text-stone-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-200"
-								type="number"
-								min="0"
-								step="0.01"
-								placeholder="0"
-								value={m.output_price}
-								onInput={(e) =>
-									updatePrice(
-										i,
-										"output_price",
-										(e.currentTarget as HTMLInputElement).value,
-									)
-								}
-							/>
-						</div>
+		<div class="mt-3 rounded-lg border border-stone-200 bg-stone-50 p-3 overflow-x-auto">
+			<div class="min-w-[480px]">
+				<div class="mb-2 flex items-center justify-between flex-wrap gap-2">
+					<p class="text-xs font-medium uppercase tracking-widest text-stone-400">
+						模型定价 & 共享设置
+					</p>
+					<div class="flex items-center gap-1.5 flex-wrap">
+						<span class="text-xs text-stone-400">
+							{enabledCount}/{parsed.length} 启用
+						</span>
+						<button
+							type="button"
+							class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+								allEnabled
+									? "bg-stone-200 text-stone-500"
+									: "bg-blue-100 text-blue-700 hover:bg-blue-200"
+							}`}
+							onClick={() => toggleAllEnabled(true)}
+							disabled={allEnabled}
+						>
+							全部启用
+						</button>
+						<button
+							type="button"
+							class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+								noneEnabled
+									? "bg-stone-200 text-stone-500"
+									: "bg-stone-100 text-stone-600 hover:bg-stone-200"
+							}`}
+							onClick={() => toggleAllEnabled(false)}
+							disabled={noneEnabled}
+						>
+							全部禁用
+						</button>
+						<span class="text-xs text-stone-300">|</span>
+						<span class="text-xs text-stone-400">
+							{sharedCount}/{parsed.length} 共享
+						</span>
+						<button
+							type="button"
+							class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+								allShared
+									? "bg-stone-200 text-stone-500"
+									: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+							}`}
+							onClick={() => toggleAll(true)}
+							disabled={allShared}
+						>
+							全部共享
+						</button>
+						<button
+							type="button"
+							class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+								noneShared
+									? "bg-stone-200 text-stone-500"
+									: "bg-stone-100 text-stone-600 hover:bg-stone-200"
+							}`}
+							onClick={() => toggleAll(false)}
+							disabled={noneShared}
+						>
+							全部取消
+						</button>
 					</div>
-				))}
+				</div>
+				<div class="space-y-2">
+					{parsed.map((m, i) => (
+						<div
+							key={`${m.id}-${i}`}
+							class={`flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 ${!m.enabled ? "opacity-50" : ""}`}
+						>
+							<div class="flex min-w-0 flex-1 items-center gap-2">
+								<button
+									type="button"
+									class={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
+										m.enabled
+											? "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+											: "border-stone-200 bg-white text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+									}`}
+									onClick={() => updateEnabled(i, !m.enabled)}
+								>
+									{m.enabled ? "启用" : "禁用"}
+								</button>
+								<button
+									type="button"
+									class={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
+										m.shared
+											? "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+											: "border-stone-200 bg-white text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+									}`}
+									onClick={() => updateShared(i, !m.shared)}
+								>
+									{m.shared ? "共享" : "私有"}
+								</button>
+								<span class={`min-w-0 truncate text-xs font-medium ${m.enabled ? "text-stone-700" : "text-stone-400 line-through"}`}>
+									{m.id}
+								</span>
+							</div>
+							<div class="flex shrink-0 items-center gap-1.5">
+								<label class="text-xs text-stone-400">输入</label>
+								<input
+									class="w-20 rounded border border-stone-200 bg-white px-2 py-1 text-xs text-stone-900 placeholder:text-stone-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-200"
+									type="number"
+									min="0"
+									step="0.01"
+									placeholder="0"
+									value={m.input_price}
+									onInput={(e) =>
+										updatePrice(
+											i,
+											"input_price",
+											(e.currentTarget as HTMLInputElement).value,
+										)
+									}
+								/>
+								<label class="text-xs text-stone-400">输出</label>
+								<input
+									class="w-20 rounded border border-stone-200 bg-white px-2 py-1 text-xs text-stone-900 placeholder:text-stone-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-200"
+									type="number"
+									min="0"
+									step="0.01"
+									placeholder="0"
+									value={m.output_price}
+									onInput={(e) =>
+										updatePrice(
+											i,
+											"output_price",
+											(e.currentTarget as HTMLInputElement).value,
+										)
+									}
+								/>
+							</div>
+						</div>
+					))}
+				</div>
 			</div>
 		</div>
 	);
