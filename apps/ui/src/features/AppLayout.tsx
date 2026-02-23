@@ -28,7 +28,7 @@ export const AppLayout = ({
 	onLogout,
 	children,
 }: AppLayoutProps) => (
-	<div class="grid min-h-screen grid-cols-1 grid-rows-[auto_1fr] lg:grid-cols-[260px_1fr] lg:grid-rows-none">
+	<div class="grid h-screen grid-cols-1 grid-rows-[auto_1fr] lg:grid-cols-[260px_1fr] lg:grid-rows-none overflow-hidden">
 		{/* Mobile top bar */}
 		<div class="sticky top-0 z-40 flex items-center justify-between border-b border-stone-200 bg-white px-4 py-3 lg:hidden">
 			<button
@@ -146,8 +146,8 @@ export const AppLayout = ({
 				))}
 			</nav>
 		</aside>
-		<main class="px-4 pt-4 pb-16 sm:px-6 sm:pt-6 md:px-10 md:pt-8">
-			<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+		<main class="flex flex-col overflow-hidden px-4 pt-4 sm:px-6 sm:pt-6 md:px-10 md:pt-8">
+			<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
 				<div>
 					<h1 class="font-['Space_Grotesk'] text-xl md:text-2xl tracking-tight text-stone-900">
 						{activeLabel}
@@ -170,11 +170,13 @@ export const AppLayout = ({
 				</div>
 			</div>
 			{notice && (
-				<div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+				<div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 shrink-0">
 					{notice}
 				</div>
 			)}
-			{children}
+			<div class="flex-1 min-h-0 overflow-y-auto pb-8">
+				{children}
+			</div>
 		</main>
 	</div>
 );

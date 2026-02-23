@@ -65,7 +65,7 @@ export const UsageView = ({ usage, onRefresh }: UsageViewProps) => {
 	);
 
 	return (
-		<div class="flex flex-col rounded-2xl border border-stone-200 bg-white p-5 shadow-lg" style="height: calc(100vh - 180px); min-height: 500px;">
+		<div class="flex h-full flex-col rounded-2xl border border-stone-200 bg-white p-5 shadow-lg">
 			<div class="flex flex-wrap items-center justify-between gap-3 shrink-0">
 				<div>
 					<h3 class="mb-1 font-['Space_Grotesk'] text-lg tracking-tight text-stone-900">

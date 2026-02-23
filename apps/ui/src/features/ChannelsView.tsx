@@ -95,9 +95,8 @@ const ModelPricingEditor = ({
 	};
 
 	return (
-		<div class="mt-3 rounded-lg border border-stone-200 bg-stone-50 p-3 overflow-x-auto">
-			<div class="min-w-[480px]">
-				<div class="mb-2 flex items-center justify-between flex-wrap gap-2">
+		<div class="mt-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+			<div class="mb-2 flex items-center justify-between flex-wrap gap-2">
 					<p class="text-xs font-medium uppercase tracking-widest text-stone-400">
 						模型定价 & 共享设置
 					</p>
@@ -228,7 +227,6 @@ const ModelPricingEditor = ({
 							</div>
 						</div>
 					))}
-				</div>
 			</div>
 		</div>
 	);
@@ -576,7 +574,7 @@ export const ChannelsView = ({
 			</div>
 			{isChannelModalOpen && (
 				<div class="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-stone-900/40 px-0 md:px-4 py-0 md:py-8">
-					<div class="w-full max-w-xl rounded-t-2xl md:rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+					<div class="w-full max-w-3xl rounded-t-2xl md:rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
 						<div class="flex flex-wrap items-start justify-between gap-3">
 							<div>
 								<h3 class="mb-1 font-['Space_Grotesk'] text-lg tracking-tight text-stone-900">

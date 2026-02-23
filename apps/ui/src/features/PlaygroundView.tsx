@@ -201,7 +201,7 @@ export const PlaygroundView = ({ token }: PlaygroundViewProps) => {
 	);
 
 	return (
-		<div class="flex flex-col" style="height: calc(100vh - 180px); min-height: 400px;">
+		<div class="flex h-full flex-col">
 			{/* Header */}
 			<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-lg shrink-0">
 				<h2 class="text-base font-semibold text-stone-800">对话测试</h2>
