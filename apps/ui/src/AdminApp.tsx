@@ -294,14 +294,16 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 							input_price?: number;
 							output_price?: number;
 							shared?: boolean;
+							enabled?: boolean;
 						};
 						const id = obj?.id ?? "";
 						if (!id) return "";
 						const ip = obj?.input_price;
 						const op = obj?.output_price;
 						const sh = obj?.shared;
-						if (ip != null || op != null || sh != null) {
-							return `${id}|${ip ?? ""}|${op ?? ""}|${sh ? "1" : "0"}`;
+						const en = obj?.enabled;
+						if (ip != null || op != null || sh != null || en != null) {
+							return `${id}|${ip ?? ""}|${op ?? ""}|${sh ? "1" : "0"}|${en === false ? "0" : "1"}`;
 						}
 						return id;
 					})
@@ -486,6 +488,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 
 	const handleChannelDelete = useCallback(
 		async (id: string) => {
+			if (!window.confirm("确定要删除该渠道吗？此操作不可撤销。")) return;
 			try {
 				await apiFetch(`/api/channels/${id}`, { method: "DELETE" });
 				await loadChannels();
@@ -519,6 +522,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 
 	const handleTokenDelete = useCallback(
 		async (id: string) => {
+			if (!window.confirm("确定要删除该令牌吗？此操作不可撤销。")) return;
 			try {
 				await apiFetch(`/api/tokens/${id}`, { method: "DELETE" });
 				await loadTokens();
@@ -663,6 +667,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 
 	const handleUserDelete = useCallback(
 		async (id: string) => {
+			if (!window.confirm("确定要删除该用户吗？此操作不可撤销。")) return;
 			try {
 				await apiFetch(`/api/users/${id}`, { method: "DELETE" });
 				await loadUsers();

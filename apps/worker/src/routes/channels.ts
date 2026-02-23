@@ -72,7 +72,7 @@ channels.get("/", async (c) => {
  */
 channels.post("/", async (c) => {
 	const body = (await c.req.json().catch(() => null)) as ChannelPayload | null;
-	if (!body?.name || !body?.base_url || !body?.api_key) {
+	if (!body?.name || !body?.base_url) {
 		return jsonError(c, 400, "missing_fields", "missing_fields");
 	}
 
@@ -96,7 +96,7 @@ channels.post("/", async (c) => {
 			apiFormat === "anthropic"
 				? normalizeBaseUrl(String(body.base_url))
 				: String(body.base_url).trim().replace(/\/+$/, ""),
-		api_key: body.api_key,
+		api_key: body.api_key ?? "",
 		weight: Number(body.weight ?? 1),
 		status: body.status ?? "active",
 		rate_limit: body.rate_limit ?? 0,
@@ -198,7 +198,11 @@ channels.post("/:id/test", async (c) => {
 
 	const siteMode = await getSiteMode(c.env.DB);
 
-	// Only overwrite models_json when the test actually returned models
+	// Check if channel already has models filled in
+	const existingModels = safeJsonParse<unknown[]>(channel.models_json, []);
+	const channelHasModels = Array.isArray(existingModels) && existingModels.length > 0;
+
+	// Only overwrite models_json when the test returned models AND channel has no existing models
 	const hasModels = result.models.length > 0;
 	const updateData: {
 		ok: boolean;
@@ -207,7 +211,7 @@ channels.post("/:id/test", async (c) => {
 		existingModelsJson?: string | null;
 		defaultShared?: boolean;
 	} = { ok: true, elapsed: result.elapsed };
-	if (hasModels && result.payload) {
+	if (hasModels && result.payload && !channelHasModels) {
 		const payloadData = Array.isArray(result.payload)
 			? result.payload
 			: ((result.payload as { data?: unknown[] })?.data ?? []);

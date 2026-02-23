@@ -267,7 +267,7 @@ newapi.post("/", async (c) => {
 
 	const payload = body.channel ?? body;
 	const parsed = normalizeChannelInput(payload);
-	if (!parsed.name || !parsed.base_url || !parsed.api_key) {
+	if (!parsed.name || !parsed.base_url) {
 		return newApiFailure(c, 400, "缺少必要参数");
 	}
 
@@ -283,7 +283,7 @@ newapi.post("/", async (c) => {
 		id: existingId,
 		name: parsed.name,
 		base_url: baseUrl,
-		api_key: parsed.api_key,
+		api_key: parsed.api_key ?? "",
 		weight: parsed.weight ?? 1,
 		status: parsed.status ?? "active",
 		rate_limit: parsed.rate_limit ?? 0,

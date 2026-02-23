@@ -6,11 +6,50 @@ type ChannelItem = {
 	id: string;
 	name: string;
 	base_url: string;
+	api_key?: string;
 	models_json?: string;
 	api_format: string;
 	status: string;
 	created_at: string;
 };
+
+type ChannelFormData = {
+	name: string;
+	base_url: string;
+	api_key: string;
+	api_format: ChannelApiFormat;
+	models: string;
+};
+
+const emptyForm: ChannelFormData = {
+	name: "",
+	base_url: "",
+	api_key: "",
+	api_format: "openai",
+	models: "",
+};
+
+function parseModelsJsonToText(modelsJson?: string): string {
+	if (!modelsJson) return "";
+	try {
+		const parsed = JSON.parse(modelsJson);
+		const arr = Array.isArray(parsed)
+			? parsed
+			: Array.isArray(parsed?.data)
+				? parsed.data
+				: [];
+		return arr
+			.map((m: unknown) => {
+				if (typeof m === "string") return m;
+				const obj = m as { id?: string };
+				return obj?.id ?? "";
+			})
+			.filter(Boolean)
+			.join("\n");
+	} catch {
+		return "";
+	}
+}
 
 type UserChannelsViewProps = {
 	token: string;
@@ -23,14 +62,9 @@ export const UserChannelsView = ({
 }: UserChannelsViewProps) => {
 	const [channels, setChannels] = useState<ChannelItem[]>([]);
 	const [showModal, setShowModal] = useState(false);
+	const [editingChannel, setEditingChannel] = useState<ChannelItem | null>(null);
 	const [notice, setNotice] = useState("");
-	const [form, setForm] = useState({
-		name: "",
-		base_url: "",
-		api_key: "",
-		api_format: "openai" as ChannelApiFormat,
-		models: "",
-	});
+	const [form, setForm] = useState<ChannelFormData>({ ...emptyForm });
 
 	const apiFetch = useMemo(
 		() => createApiFetch(token, () => updateToken(null)),
@@ -52,6 +86,32 @@ export const UserChannelsView = ({
 		loadChannels();
 	}, [loadChannels]);
 
+	const openCreate = useCallback(() => {
+		setEditingChannel(null);
+		setForm({ ...emptyForm });
+		setShowModal(true);
+		setNotice("");
+	}, []);
+
+	const openEdit = useCallback((ch: ChannelItem) => {
+		setEditingChannel(ch);
+		setForm({
+			name: ch.name ?? "",
+			base_url: ch.base_url ?? "",
+			api_key: ch.api_key ?? "",
+			api_format: (ch.api_format ?? "openai") as ChannelApiFormat,
+			models: parseModelsJsonToText(ch.models_json),
+		});
+		setShowModal(true);
+		setNotice("");
+	}, []);
+
+	const closeModal = useCallback(() => {
+		setShowModal(false);
+		setEditingChannel(null);
+		setForm({ ...emptyForm });
+	}, []);
+
 	const handleSubmit = useCallback(
 		async (e: Event) => {
 			e.preventDefault();
@@ -61,35 +121,38 @@ export const UserChannelsView = ({
 					.map((l) => l.trim())
 					.filter(Boolean)
 					.map((id) => ({ id }));
-				await apiFetch("/api/u/channels", {
-					method: "POST",
-					body: JSON.stringify({
-						name: form.name.trim(),
-						base_url: form.base_url.trim(),
-						api_key: form.api_key.trim(),
-						api_format: form.api_format,
-						models: models.length > 0 ? models : undefined,
-					}),
-				});
-				setNotice("渠道已贡献");
-				setShowModal(false);
-				setForm({
-					name: "",
-					base_url: "",
-					api_key: "",
-					api_format: "openai",
-					models: "",
-				});
+				const payload = {
+					name: form.name.trim(),
+					base_url: form.base_url.trim(),
+					api_key: form.api_key.trim(),
+					api_format: form.api_format,
+					models: models.length > 0 ? models : undefined,
+				};
+				if (editingChannel) {
+					await apiFetch(`/api/u/channels/${editingChannel.id}`, {
+						method: "PATCH",
+						body: JSON.stringify(payload),
+					});
+					setNotice("渠道已更新");
+				} else {
+					await apiFetch("/api/u/channels", {
+						method: "POST",
+						body: JSON.stringify(payload),
+					});
+					setNotice("渠道已贡献");
+				}
+				closeModal();
 				await loadChannels();
 			} catch (error) {
 				setNotice((error as Error).message);
 			}
 		},
-		[apiFetch, form, loadChannels],
+		[apiFetch, form, editingChannel, closeModal, loadChannels],
 	);
 
 	const handleDelete = useCallback(
 		async (id: string) => {
+			if (!window.confirm("确定要删除该渠道吗？此操作不可撤销。")) return;
 			try {
 				await apiFetch(`/api/u/channels/${id}`, { method: "DELETE" });
 				setNotice("渠道已删除");
@@ -100,6 +163,8 @@ export const UserChannelsView = ({
 		},
 		[apiFetch, loadChannels],
 	);
+
+	const isEditing = Boolean(editingChannel);
 
 	return (
 		<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-lg">
@@ -115,7 +180,7 @@ export const UserChannelsView = ({
 				<button
 					class="h-10 rounded-lg bg-stone-900 px-4 text-sm font-semibold text-white transition-all hover:shadow-lg"
 					type="button"
-					onClick={() => setShowModal(true)}
+					onClick={openCreate}
 				>
 					贡献渠道
 				</button>
@@ -165,13 +230,22 @@ export const UserChannelsView = ({
 										</span>
 									</td>
 									<td class="py-2.5">
-										<button
-											type="button"
-											class="text-xs text-red-500 hover:text-red-600"
-											onClick={() => handleDelete(ch.id)}
-										>
-											删除
-										</button>
+										<div class="flex gap-2">
+											<button
+												type="button"
+												class="text-xs text-amber-600 hover:text-amber-700"
+												onClick={() => openEdit(ch)}
+											>
+												编辑
+											</button>
+											<button
+												type="button"
+												class="text-xs text-red-500 hover:text-red-600"
+												onClick={() => handleDelete(ch.id)}
+											>
+												删除
+											</button>
+										</div>
 									</td>
 								</tr>
 							))}
@@ -180,17 +254,12 @@ export const UserChannelsView = ({
 				</div>
 			)}
 
-			{/* Create modal */}
+			{/* Create / Edit modal */}
 			{showModal && (
-				<div class="fixed inset-0 z-50 flex items-center justify-center">
-					<button
-						type="button"
-						class="absolute inset-0 bg-stone-900/40"
-						onClick={() => setShowModal(false)}
-					/>
-					<div class="relative z-10 w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
+				<div class="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-stone-900/40 px-0 md:px-4 py-0 md:py-8">
+					<div class="relative z-10 w-full max-w-lg rounded-t-2xl md:rounded-2xl border border-stone-200 bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
 						<h3 class="mb-4 font-['Space_Grotesk'] text-lg tracking-tight text-stone-900">
-							贡献渠道
+							{isEditing ? "编辑渠道" : "贡献渠道"}
 						</h3>
 						<form class="grid gap-4" onSubmit={handleSubmit}>
 							<div>
@@ -243,8 +312,7 @@ export const UserChannelsView = ({
 								<textarea
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 font-mono"
 									rows={3}
-									required
-									placeholder={"每行一个 API Key"}
+									placeholder={isEditing ? "留空不修改" : "每行一个 API Key（可留空）"}
 									value={form.api_key}
 									onInput={(e) =>
 										setForm((prev) => ({
@@ -301,7 +369,7 @@ export const UserChannelsView = ({
 								<button
 									type="button"
 									class="h-10 rounded-lg border border-stone-200 px-4 text-sm text-stone-500 hover:text-stone-900"
-									onClick={() => setShowModal(false)}
+									onClick={closeModal}
 								>
 									取消
 								</button>
@@ -309,7 +377,7 @@ export const UserChannelsView = ({
 									type="submit"
 									class="h-10 rounded-lg bg-stone-900 px-4 text-sm font-semibold text-white transition-all hover:shadow-lg"
 								>
-									提交
+									{isEditing ? "保存修改" : "提交"}
 								</button>
 							</div>
 						</form>

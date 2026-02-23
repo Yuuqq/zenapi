@@ -691,9 +691,8 @@ export const ChannelsView = ({
 									id="channel-key"
 									name="api_key"
 									rows={3}
-									placeholder={"每行一个 API Key"}
+									placeholder={"每行一个 API Key（可留空）"}
 									value={channelForm.api_key}
-									required
 									onInput={(event) =>
 										onFormChange({
 											api_key: (event.currentTarget as HTMLTextAreaElement).value,
