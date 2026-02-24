@@ -26,6 +26,7 @@ import type {
 	User,
 	UsageLog,
 } from "./core/types";
+import type { ModelAliasesMap } from "./UserApp";
 import { toggleStatus } from "./core/utils";
 import { AppLayout } from "./features/AppLayout";
 import { ChannelsView } from "./features/ChannelsView";
@@ -93,6 +94,8 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 		...initialChannelForm,
 	}));
 	const [isChannelModalOpen, setChannelModalOpen] = useState(false);
+	const [channelModelAliases, setChannelModelAliases] = useState<ModelAliasesMap>({});
+	const [channelAliasState, setChannelAliasState] = useState<ModelAliasesMap>({});
 	const [isTokenModalOpen, setTokenModalOpen] = useState(false);
 	const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [users, setUsers] = useState<User[]>([]);
@@ -115,8 +118,9 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 	}, [apiFetch]);
 
 	const loadChannels = useCallback(async () => {
-		const result = await apiFetch<{ channels: Channel[] }>("/api/channels");
+		const result = await apiFetch<{ channels: Channel[]; model_aliases?: ModelAliasesMap }>("/api/channels");
 		setData((prev) => ({ ...prev, channels: result.channels }));
+		setChannelModelAliases(result.model_aliases ?? {});
 	}, [apiFetch]);
 
 	const loadModels = useCallback(async () => {
@@ -260,12 +264,14 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 	const closeChannelModal = useCallback(() => {
 		setEditingChannel(null);
 		setChannelForm({ ...initialChannelForm });
+		setChannelAliasState({});
 		setChannelModalOpen(false);
 	}, []);
 
 	const openChannelCreate = useCallback(() => {
 		setEditingChannel(null);
 		setChannelForm({ ...initialChannelForm });
+		setChannelAliasState({});
 		setChannelModalOpen(true);
 		setNotice("");
 	}, []);
@@ -278,6 +284,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 	const startChannelEdit = useCallback((channel: Channel) => {
 		setEditingChannel(channel);
 		let modelsList = "";
+		const modelIds: string[] = [];
 		if (channel.models_json) {
 			try {
 				const parsed = JSON.parse(channel.models_json);
@@ -288,7 +295,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 						: [];
 				modelsList = arr
 					.map((m: unknown) => {
-						if (typeof m === "string") return m;
+						if (typeof m === "string") { modelIds.push(m); return m; }
 						const obj = m as {
 							id?: string;
 							input_price?: number;
@@ -298,6 +305,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 						};
 						const id = obj?.id ?? "";
 						if (!id) return "";
+						modelIds.push(id);
 						const ip = obj?.input_price;
 						const op = obj?.output_price;
 						const sh = obj?.shared;
@@ -322,9 +330,20 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 			custom_headers: channel.custom_headers_json ?? "",
 			models: modelsList,
 		});
+		// Initialize alias state from global alias map for this channel's models
+		const initial: ModelAliasesMap = {};
+		for (const mid of modelIds) {
+			if (channelModelAliases[mid]) {
+				initial[mid] = {
+					aliases: channelModelAliases[mid].aliases.map((a) => ({ ...a })),
+					alias_only: channelModelAliases[mid].alias_only,
+				};
+			}
+		}
+		setChannelAliasState(initial);
 		setChannelModalOpen(true);
 		setNotice("");
-	}, []);
+	}, [channelModelAliases]);
 
 	const closeTokenModal = useCallback(() => setTokenModalOpen(false), []);
 
@@ -371,6 +390,14 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 						}
 						return entry;
 					});
+				// Build model_aliases payload from alias state
+				const modelIds = modelsArray.map((m) => m.id);
+				const aliasPayload: Record<string, { aliases: Array<{ alias: string; is_primary: boolean }>; alias_only: boolean }> = {};
+				for (const mid of modelIds) {
+					if (channelAliasState[mid]) {
+						aliasPayload[mid] = channelAliasState[mid];
+					}
+				}
 				const body = {
 					name: channelName,
 					base_url: channelForm.base_url.trim(),
@@ -379,6 +406,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 					api_format: channelForm.api_format,
 					custom_headers: channelForm.custom_headers.trim() || undefined,
 					models: modelsArray.length > 0 ? modelsArray : undefined,
+					model_aliases: Object.keys(aliasPayload).length > 0 ? aliasPayload : undefined,
 				};
 				if (editingChannel) {
 					await apiFetch(`/api/channels/${editingChannel.id}`, {
@@ -402,6 +430,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 		[
 			apiFetch,
 			channelForm,
+			channelAliasState,
 			closeChannelModal,
 			data.channels,
 			editingChannel,
@@ -754,6 +783,8 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 					editingChannel={editingChannel}
 					isChannelModalOpen={isChannelModalOpen}
 					siteMode={data.settings?.site_mode ?? "personal"}
+					channelAliasState={channelAliasState}
+					onChannelAliasStateChange={setChannelAliasState}
 					onCreate={openChannelCreate}
 					onCloseModal={closeChannelModal}
 					onEdit={startChannelEdit}

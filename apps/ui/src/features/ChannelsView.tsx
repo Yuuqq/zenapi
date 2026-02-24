@@ -1,4 +1,6 @@
+import { useCallback, useMemo, useState } from "hono/jsx/dom";
 import type { Channel, ChannelApiFormat, ChannelForm, SiteMode } from "../core/types";
+import type { ModelAliasConfig, ModelAliasesMap } from "../UserApp";
 import { buildPageItems } from "../core/utils";
 
 type ParsedModel = {
@@ -243,6 +245,8 @@ type ChannelsViewProps = {
 	editingChannel: Channel | null;
 	isChannelModalOpen: boolean;
 	siteMode: SiteMode;
+	channelAliasState: ModelAliasesMap;
+	onChannelAliasStateChange: (state: ModelAliasesMap) => void;
 	onCreate: () => void;
 	onCloseModal: () => void;
 	onEdit: (channel: Channel) => void;
@@ -290,6 +294,8 @@ export const ChannelsView = ({
 	editingChannel,
 	isChannelModalOpen,
 	siteMode,
+	channelAliasState,
+	onChannelAliasStateChange,
 	onCreate,
 	onCloseModal,
 	onEdit,
@@ -304,6 +310,79 @@ export const ChannelsView = ({
 }: ChannelsViewProps) => {
 	const isEditing = Boolean(editingChannel);
 	const pageItems = buildPageItems(channelPage, channelTotalPages);
+
+	// Local UI state for expanded alias editors
+	const [expandedAliasModels, setExpandedAliasModels] = useState<Set<string>>(new Set());
+
+	// Parse model IDs from the pipe-delimited models text
+	const parsedModelIds = useMemo(
+		() =>
+			channelForm.models
+				.split("\n")
+				.map((line) => line.trim())
+				.filter(Boolean)
+				.map((line) => line.split("|")[0].trim())
+				.filter(Boolean),
+		[channelForm.models],
+	);
+
+	const toggleAliasExpanded = useCallback((modelId: string) => {
+		setExpandedAliasModels((prev) => {
+			const next = new Set(prev);
+			if (next.has(modelId)) next.delete(modelId);
+			else next.add(modelId);
+			return next;
+		});
+	}, []);
+
+	const addAlias = useCallback((modelId: string, alias: string) => {
+		const trimmed = alias.trim();
+		if (!trimmed) return;
+		onChannelAliasStateChange({
+			...channelAliasState,
+			[modelId]: {
+				aliases: [
+					...(channelAliasState[modelId]?.aliases ?? []),
+					...(channelAliasState[modelId]?.aliases?.some((a) => a.alias === trimmed) ? [] : [{ alias: trimmed, is_primary: false }]),
+				],
+				alias_only: channelAliasState[modelId]?.alias_only ?? false,
+			},
+		});
+	}, [channelAliasState, onChannelAliasStateChange]);
+
+	const removeAlias = useCallback((modelId: string, index: number) => {
+		const existing = channelAliasState[modelId];
+		if (!existing) return;
+		onChannelAliasStateChange({
+			...channelAliasState,
+			[modelId]: {
+				...existing,
+				aliases: existing.aliases.filter((_, i) => i !== index),
+			},
+		});
+	}, [channelAliasState, onChannelAliasStateChange]);
+
+	const setAliasPrimary = useCallback((modelId: string, index: number) => {
+		const existing = channelAliasState[modelId];
+		if (!existing) return;
+		onChannelAliasStateChange({
+			...channelAliasState,
+			[modelId]: {
+				...existing,
+				aliases: existing.aliases.map((a, i) => ({ ...a, is_primary: i === index })),
+			},
+		});
+	}, [channelAliasState, onChannelAliasStateChange]);
+
+	const toggleAliasOnly = useCallback((modelId: string, checked: boolean) => {
+		onChannelAliasStateChange({
+			...channelAliasState,
+			[modelId]: {
+				aliases: channelAliasState[modelId]?.aliases ?? [],
+				alias_only: checked,
+			},
+		});
+	}, [channelAliasState, onChannelAliasStateChange]);
 	return (
 		<div class="space-y-5">
 			<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-lg">
@@ -754,6 +833,106 @@ export const ChannelsView = ({
 										onFormChange({ models: value })
 									}
 								/>
+								{/* Per-model alias editor */}
+								{parsedModelIds.length > 0 && (
+									<div class="mt-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+										<p class="mb-2 text-xs font-medium uppercase tracking-widest text-stone-400">
+											模型别名配置
+										</p>
+										<div class="space-y-1">
+											{parsedModelIds.map((modelId) => {
+												const config = channelAliasState[modelId];
+												const aliasCount = config?.aliases?.length ?? 0;
+												const isExpanded = expandedAliasModels.has(modelId);
+												return (
+													<div class="rounded-lg border border-stone-200 bg-white">
+														<button
+															type="button"
+															class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-stone-50"
+															onClick={() => toggleAliasExpanded(modelId)}
+														>
+															<span class="text-xs text-stone-400">{isExpanded ? "▼" : "▶"}</span>
+															<span class="flex-1 truncate font-mono text-xs text-stone-800">{modelId}</span>
+															{aliasCount > 0 && (
+																<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+																	{aliasCount} 个别名
+																</span>
+															)}
+														</button>
+														{isExpanded && (
+															<div class="border-t border-stone-100 px-3 py-2.5">
+																{config?.aliases && config.aliases.length > 0 && (
+																	<div class="mb-2 space-y-1.5">
+																		{config.aliases.map((alias, index) => (
+																			<div class="flex items-center gap-2 rounded border border-stone-100 bg-stone-50 px-2 py-1.5">
+																				<label class="flex cursor-pointer items-center gap-1 text-xs text-stone-500">
+																					<input
+																						type="radio"
+																						name={`admin-primary-${modelId}`}
+																						checked={alias.is_primary}
+																						onChange={() => setAliasPrimary(modelId, index)}
+																						class="accent-amber-500"
+																					/>
+																					主名
+																				</label>
+																				<span class="flex-1 break-all font-mono text-xs text-stone-700">{alias.alias}</span>
+																				<button
+																					type="button"
+																					class="rounded px-1.5 py-0.5 text-xs text-red-400 hover:bg-red-50 hover:text-red-600"
+																					onClick={() => removeAlias(modelId, index)}
+																				>
+																					删除
+																				</button>
+																			</div>
+																		))}
+																	</div>
+																)}
+																<div class="flex gap-1.5">
+																	<input
+																		type="text"
+																		class="flex-1 rounded border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-200"
+																		placeholder="输入别名..."
+																		onKeyDown={(e) => {
+																			if (e.key === "Enter") {
+																				e.preventDefault();
+																				const input = e.currentTarget as HTMLInputElement;
+																				addAlias(modelId, input.value);
+																				input.value = "";
+																			}
+																		}}
+																	/>
+																	<button
+																		type="button"
+																		class="rounded border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+																		onClick={(e) => {
+																			const input = (e.currentTarget as HTMLElement).previousElementSibling as HTMLInputElement;
+																			addAlias(modelId, input.value);
+																			input.value = "";
+																		}}
+																	>
+																		添加
+																	</button>
+																</div>
+																{(config?.aliases?.length ?? 0) > 0 && (
+																	<label class="mt-2 flex cursor-pointer items-center gap-2 rounded border border-stone-100 bg-stone-50 px-2 py-1.5">
+																		<input
+																			type="checkbox"
+																			checked={config?.alias_only ?? false}
+																			onChange={(e) => toggleAliasOnly(modelId, (e.currentTarget as HTMLInputElement).checked)}
+																			class="accent-amber-500"
+																		/>
+																		<span class="text-xs text-stone-700">仅限别名</span>
+																		<span class="text-xs text-stone-400">— 隐藏原始模型名</span>
+																	</label>
+																)}
+															</div>
+														)}
+													</div>
+												);
+											})}
+										</div>
+									</div>
+								)}
 							</div>
 							{channelForm.api_format === "custom" && (
 								<div>

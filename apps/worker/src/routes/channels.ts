@@ -13,6 +13,7 @@ import {
 	updateChannelTestResult,
 } from "../services/channel-testing";
 import type { ChannelApiFormat } from "../services/channel-types";
+import { saveAliasesForModel } from "../services/model-aliases";
 import { getSiteMode } from "../services/settings";
 import { generateToken } from "../utils/crypto";
 import { jsonError } from "../utils/http";
@@ -22,6 +23,11 @@ import { nowIso } from "../utils/time";
 import { normalizeBaseUrl } from "../utils/url";
 
 const channels = new Hono<AppEnv>();
+
+type AliasConfig = {
+	aliases: Array<{ alias: string; is_primary: boolean }>;
+	alias_only: boolean;
+};
 
 type ChannelPayload = {
 	id?: string | number;
@@ -36,6 +42,7 @@ type ChannelPayload = {
 	models?: unknown[];
 	api_format?: string;
 	custom_headers?: string;
+	model_aliases?: Record<string, AliasConfig>;
 };
 
 /**
@@ -64,7 +71,54 @@ channels.get("/", async (c) => {
 		orderBy: "created_at",
 		order: "DESC",
 	});
-	return c.json({ channels: rows });
+
+	// Collect all model IDs across channels
+	const allModelIds = new Set<string>();
+	for (const ch of rows) {
+		const modelsJson = ch.models_json as string | null;
+		if (!modelsJson) continue;
+		try {
+			const parsed = JSON.parse(modelsJson);
+			const arr = Array.isArray(parsed)
+				? parsed
+				: Array.isArray(parsed?.data)
+					? parsed.data
+					: [];
+			for (const m of arr) {
+				const id = typeof m === "string" ? m : m?.id;
+				if (id) allModelIds.add(id);
+			}
+		} catch {
+			// skip malformed JSON
+		}
+	}
+
+	// Batch-query aliases for all model IDs
+	const modelAliases: Record<string, AliasConfig> = {};
+	if (allModelIds.size > 0) {
+		const ids = [...allModelIds];
+		const placeholders = ids.map(() => "?").join(",");
+		const aliasRows = await c.env.DB.prepare(
+			`SELECT model_id, alias, is_primary, alias_only FROM model_aliases WHERE model_id IN (${placeholders}) ORDER BY model_id, is_primary DESC, alias`,
+		)
+			.bind(...ids)
+			.all<{ model_id: string; alias: string; is_primary: number; alias_only: number }>();
+
+		for (const row of aliasRows.results ?? []) {
+			if (!modelAliases[row.model_id]) {
+				modelAliases[row.model_id] = { aliases: [], alias_only: false };
+			}
+			modelAliases[row.model_id].aliases.push({
+				alias: row.alias,
+				is_primary: row.is_primary === 1,
+			});
+			if (row.alias_only === 1) {
+				modelAliases[row.model_id].alias_only = true;
+			}
+		}
+	}
+
+	return c.json({ channels: rows, model_aliases: modelAliases });
 });
 
 /**
@@ -110,6 +164,22 @@ channels.post("/", async (c) => {
 		created_at: now,
 		updated_at: now,
 	});
+
+	// Save model aliases if provided
+	if (body.model_aliases && typeof body.model_aliases === "object") {
+		const modelIds = (body.models ?? []).map((m: unknown) =>
+			typeof m === "string" ? m : (m as { id?: string })?.id ?? "",
+		).filter(Boolean);
+		for (const [modelId, config] of Object.entries(body.model_aliases)) {
+			if (!modelIds.includes(modelId)) continue;
+			await saveAliasesForModel(
+				c.env.DB,
+				modelId,
+				config.aliases?.map((a) => ({ alias: a.alias, is_primary: a.is_primary })) ?? [],
+				config.alias_only ?? false,
+			);
+		}
+	}
 
 	return c.json({ id });
 });
@@ -158,6 +228,22 @@ channels.patch("/:id", async (c) => {
 		custom_headers_json: customHeadersJson,
 		updated_at: nowIso(),
 	});
+
+	// Save model aliases if provided
+	if (body.model_aliases && typeof body.model_aliases === "object") {
+		const modelIds = (Array.isArray(models) ? models : []).map((m: unknown) =>
+			typeof m === "string" ? m : (m as { id?: string })?.id ?? "",
+		).filter(Boolean);
+		for (const [modelId, config] of Object.entries(body.model_aliases)) {
+			if (!modelIds.includes(modelId)) continue;
+			await saveAliasesForModel(
+				c.env.DB,
+				modelId,
+				config.aliases?.map((a) => ({ alias: a.alias, is_primary: a.is_primary })) ?? [],
+				config.alias_only ?? false,
+			);
+		}
+	}
 
 	return c.json({ ok: true });
 });
