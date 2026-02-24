@@ -11,6 +11,7 @@ type ChannelItem = {
 	models_json?: string;
 	api_format: string;
 	status: string;
+	tip_url?: string;
 	created_at: string;
 };
 
@@ -20,6 +21,7 @@ type ChannelFormData = {
 	api_key: string;
 	api_format: ChannelApiFormat;
 	models: string;
+	tip_url: string;
 };
 
 const emptyForm: ChannelFormData = {
@@ -28,6 +30,7 @@ const emptyForm: ChannelFormData = {
 	api_key: "",
 	api_format: "openai",
 	models: "",
+	tip_url: "",
 };
 
 function parseModelsJsonToText(modelsJson?: string): string {
@@ -98,6 +101,7 @@ export const UserChannelsView = ({
 			api_key: ch.api_key ?? "",
 			api_format: (ch.api_format ?? "openai") as ChannelApiFormat,
 			models: parseModelsJsonToText(ch.models_json),
+			tip_url: ch.tip_url ?? "",
 		});
 		// Initialize alias state from modelAliases for this channel's models
 		const models = parseModelsJsonToText(ch.models_json)
@@ -152,6 +156,7 @@ export const UserChannelsView = ({
 					api_format: form.api_format,
 					models: models.length > 0 ? models : undefined,
 					model_aliases: Object.keys(modelAliasPayload).length > 0 ? modelAliasPayload : undefined,
+					tip_url: form.tip_url.trim() || "",
 				};
 				if (editingChannel) {
 					await apiFetch(`/api/u/channels/${editingChannel.id}`, {
@@ -449,6 +454,26 @@ export const UserChannelsView = ({
 									<option value="anthropic" selected={form.api_format === "anthropic"}>Anthropic</option>
 									<option value="custom" selected={form.api_format === "custom"}>Custom</option>
 								</select>
+							</div>
+							<div>
+								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+									打赏链接（选填）
+								</label>
+								<input
+									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+									type="url"
+									placeholder="https://example.com/tip"
+									value={form.tip_url}
+									onInput={(e) =>
+										setForm((prev) => ({
+											...prev,
+											tip_url:
+												(
+													e.currentTarget as HTMLInputElement
+												)?.value ?? "",
+										}))
+									}
+								/>
 							</div>
 							<div>
 								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">

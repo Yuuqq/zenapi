@@ -235,18 +235,19 @@ userApi.get("/dashboard", async (c) => {
 
 		const contributorIds = (contribRows.results ?? []).map((r) => String(r.user_id));
 
-		let channelDetailMap = new Map<string, Array<{ name: string; requests: number; total_tokens: number }>>();
+		let channelDetailMap = new Map<string, Array<{ name: string; tip_url: string | null; requests: number; total_tokens: number }>>();
 		if (contributorIds.length > 0) {
 			const channelRows = await c.env.DB.prepare(
 				`SELECT
 					c.contributed_by,
 					c.name,
+					c.tip_url,
 					COALESCE(SUM(CASE WHEN ul.id IS NOT NULL THEN 1 ELSE 0 END), 0) AS requests,
 					COALESCE(SUM(ul.total_tokens), 0) AS total_tokens
 				FROM channels c
 				LEFT JOIN usage_logs ul ON ul.channel_id = c.id
 				WHERE c.contributed_by IS NOT NULL AND c.status = 'active'
-				GROUP BY c.id, c.contributed_by, c.name
+				GROUP BY c.id, c.contributed_by, c.name, c.tip_url
 				ORDER BY requests DESC`,
 			).all();
 
@@ -255,6 +256,7 @@ userApi.get("/dashboard", async (c) => {
 				const arr = channelDetailMap.get(uid) ?? [];
 				arr.push({
 					name: String(row.name),
+					tip_url: row.tip_url ? String(row.tip_url) : null,
 					requests: Number(row.requests),
 					total_tokens: Number(row.total_tokens),
 				});

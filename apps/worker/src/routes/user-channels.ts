@@ -27,7 +27,7 @@ userChannels.get("/", async (c) => {
 
 	const userId = c.get("userId") as string;
 	const result = await c.env.DB.prepare(
-		"SELECT id, name, base_url, api_key, models_json, api_format, status, created_at FROM channels WHERE contributed_by = ? ORDER BY created_at DESC",
+		"SELECT id, name, base_url, api_key, models_json, api_format, status, tip_url, created_at FROM channels WHERE contributed_by = ? ORDER BY created_at DESC",
 	)
 		.bind(userId)
 		.all();
@@ -111,7 +111,7 @@ userChannels.post("/", async (c) => {
 	}
 
 	await c.env.DB.prepare(
-		"INSERT INTO channels (id, name, base_url, api_key, weight, status, api_format, models_json, custom_headers_json, contributed_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"INSERT INTO channels (id, name, base_url, api_key, weight, status, api_format, models_json, custom_headers_json, contributed_by, tip_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	)
 		.bind(
 			id,
@@ -124,6 +124,7 @@ userChannels.post("/", async (c) => {
 			modelsJson,
 			body.custom_headers ? String(body.custom_headers) : null,
 			userId,
+			body.tip_url ? String(body.tip_url).trim() : null,
 			now,
 			now,
 		)
@@ -166,7 +167,7 @@ userChannels.patch("/:id", async (c) => {
 	const channelId = c.req.param("id");
 
 	const existing = await c.env.DB.prepare(
-		"SELECT id, name, base_url, api_key, api_format, models_json FROM channels WHERE id = ? AND contributed_by = ?",
+		"SELECT id, name, base_url, api_key, api_format, models_json, tip_url FROM channels WHERE id = ? AND contributed_by = ?",
 	)
 		.bind(channelId, userId)
 		.first();
@@ -187,7 +188,7 @@ userChannels.patch("/:id", async (c) => {
 	}
 
 	await c.env.DB.prepare(
-		"UPDATE channels SET name = ?, base_url = ?, api_key = ?, api_format = ?, models_json = ?, updated_at = ? WHERE id = ? AND contributed_by = ?",
+		"UPDATE channels SET name = ?, base_url = ?, api_key = ?, api_format = ?, models_json = ?, tip_url = ?, updated_at = ? WHERE id = ? AND contributed_by = ?",
 	)
 		.bind(
 			body.name ? String(body.name).trim() : existing.name,
@@ -195,6 +196,7 @@ userChannels.patch("/:id", async (c) => {
 			body.api_key ? String(body.api_key).trim() : existing.api_key,
 			body.api_format ?? existing.api_format ?? "openai",
 			modelsJson,
+			body.tip_url !== undefined ? (String(body.tip_url).trim() || null) : (existing.tip_url as string | null),
 			now,
 			channelId,
 			userId,

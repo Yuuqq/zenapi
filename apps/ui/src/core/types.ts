@@ -225,6 +225,7 @@ export type User = {
 
 export type ContributionChannel = {
 	name: string;
+	tip_url: string | null;
 	requests: number;
 	total_tokens: number;
 };

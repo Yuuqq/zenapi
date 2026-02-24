@@ -80,7 +80,20 @@ const ContributionBoard = ({ contributions }: { contributions: ContributionEntry
 														<tbody>
 															{entry.channels.map((ch) => (
 																<tr key={ch.name} class="border-t border-stone-100">
-																	<td class="py-1 text-stone-600">{ch.name}</td>
+																	<td class="py-1 text-stone-600">
+																		{ch.name}
+																		{ch.tip_url && (
+																			<a
+																				href={ch.tip_url}
+																				target="_blank"
+																				rel="noopener noreferrer"
+																				class="ml-1.5 inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-xs text-amber-600 hover:bg-amber-100"
+																				onClick={(e) => e.stopPropagation()}
+																			>
+																				打赏
+																			</a>
+																		)}
+																	</td>
 																	<td class="py-1 text-right font-['Space_Grotesk'] text-stone-500">
 																		{formatNumber(ch.requests)}
 																	</td>

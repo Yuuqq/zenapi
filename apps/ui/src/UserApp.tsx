@@ -24,6 +24,7 @@ type ChannelItem = {
 	models_json?: string;
 	api_format: string;
 	status: string;
+	tip_url?: string;
 	created_at: string;
 };
 

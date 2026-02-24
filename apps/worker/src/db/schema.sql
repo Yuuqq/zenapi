@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS channels (
   api_format TEXT NOT NULL DEFAULT 'openai',
   custom_headers_json TEXT,
   contributed_by TEXT,
+  tip_url TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
