@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { sha256Hex } from "../utils/crypto";
+import { sha256Hex, hashPassword, verifyPassword } from "../utils/crypto";
 import { jsonError } from "../utils/http";
 import { nowIso } from "../utils/time";
 
@@ -40,7 +40,7 @@ adminUsers.post("/", async (c) => {
 	}
 
 	const id = crypto.randomUUID();
-	const passwordHash = await sha256Hex(password);
+	const passwordHash = await hashPassword(password);
 	const now = nowIso();
 	const balance = Number(body.balance ?? 0);
 
@@ -116,7 +116,7 @@ adminUsers.patch("/:id", async (c) => {
 
 	// If password is provided, update it
 	if (body.password) {
-		const passwordHash = await sha256Hex(String(body.password));
+		const passwordHash = await hashPassword(String(body.password));
 		await c.env.DB.prepare(
 			"UPDATE users SET password_hash = ? WHERE id = ?",
 		)

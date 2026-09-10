@@ -6,7 +6,7 @@ import { extractModelPricings, extractSharedModelPricings } from "../services/ch
 import { listActiveChannels } from "../services/channel-repo";
 import { loadPrimaryNameMap } from "../services/model-aliases";
 import { getSiteMode } from "../services/settings";
-import { generateToken, sha256Hex } from "../utils/crypto";
+import { generateToken, sha256Hex, hashPassword, verifyPassword } from "../utils/crypto";
 import { jsonError } from "../utils/http";
 import { nowIso } from "../utils/time";
 
@@ -120,9 +120,9 @@ userApi.post("/tokens", async (c) => {
 	const keyPrefix = rawToken.slice(0, 8);
 
 	await c.env.DB.prepare(
-		"INSERT INTO tokens (id, name, key_hash, key_prefix, token_plain, quota_total, quota_used, status, allowed_channels, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"INSERT INTO tokens (id, name, key_hash, key_prefix, quota_total, quota_used, status, allowed_channels, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	)
-		.bind(id, body.name, tokenHash, keyPrefix, rawToken, null, 0, "active", null, userId, now, now)
+		.bind(id, body.name, tokenHash, keyPrefix, null, 0, "active", null, userId, now, now)
 		.run();
 
 	return c.json({ id, token: rawToken });
@@ -152,25 +152,6 @@ userApi.delete("/tokens/:id", async (c) => {
 	return c.json({ ok: true });
 });
 
-/**
- * Reveals a user's token.
- */
-userApi.get("/tokens/:id/reveal", async (c) => {
-	const userId = c.get("userId") as string;
-	const tokenId = c.req.param("id");
-
-	const record = await c.env.DB.prepare(
-		"SELECT token_plain FROM tokens WHERE id = ? AND user_id = ?",
-	)
-		.bind(tokenId, userId)
-		.first<{ token_plain?: string | null }>();
-
-	if (!record) {
-		return jsonError(c, 404, "token_not_found", "token_not_found");
-	}
-
-	return c.json({ token: record.token_plain ?? null });
-});
 
 /**
  * Returns usage logs for the current user's tokens.
@@ -251,7 +232,7 @@ userApi.get("/dashboard", async (c) => {
 				COALESCE(SUM(ul.total_tokens), 0) AS total_tokens
 			FROM channels c
 			JOIN users u ON c.contributed_by = u.id
-			LEFT JOIN usage_logs ul ON ul.channel_id = c.id
+			LEFT JOIN usage_logs ul ON ul.channel_id = c.id AND ul.created_at > datetime('now', '-30 days')
 			WHERE c.contributed_by IS NOT NULL AND c.status = 'active'
 			GROUP BY u.id, u.name, u.linuxdo_id, u.tip_url
 			ORDER BY total_requests DESC`,

@@ -3,7 +3,7 @@ import type { AppEnv } from "../env";
 import type { UserRecord } from "../middleware/userAuth";
 import { userAuth } from "../middleware/userAuth";
 import { getRegistrationMode, getSiteMode } from "../services/settings";
-import { generateToken, sha256Hex } from "../utils/crypto";
+import { generateToken, sha256Hex, hashPassword, verifyPassword } from "../utils/crypto";
 import { jsonError } from "../utils/http";
 import { addHours, nowIso } from "../utils/time";
 
@@ -54,7 +54,7 @@ userAuthRoutes.post("/register", async (c) => {
 	}
 
 	const id = crypto.randomUUID();
-	const passwordHash = await sha256Hex(password);
+	const passwordHash = await hashPassword(password);
 	const now = nowIso();
 	const defaultBalance = siteMode === "shared" ? 100 : 0;
 
@@ -94,7 +94,7 @@ userAuthRoutes.post("/login", async (c) => {
 
 	const accountStr = String(account).trim().toLowerCase();
 	const password = String(body.password);
-	const passwordHash = await sha256Hex(password);
+	const passwordHash = await hashPassword(password);
 
 	const user = await c.env.DB.prepare(
 		"SELECT id, email, name, role, balance, status, password_hash FROM users WHERE email = ? OR LOWER(name) = ?",
@@ -102,7 +102,7 @@ userAuthRoutes.post("/login", async (c) => {
 		.bind(accountStr, accountStr)
 		.first<UserRecord & { password_hash: string }>();
 
-	if (!user || user.password_hash !== passwordHash) {
+	if (!user || !(await verifyPassword(password, user.password_hash))) {
 		return jsonError(c, 401, "invalid_credentials", "invalid_credentials");
 	}
 
@@ -442,7 +442,7 @@ userAuthRoutes.get("/linuxdo/callback", async (c) => {
 		const email = `linuxdo_${linuxdoId}@linuxdo.connect`;
 		const displayName = linuxdoUser.name || linuxdoUser.username;
 		// Random password hash so password login is disabled
-		const passwordHash = await sha256Hex(generateToken("pwd_"));
+		const passwordHash = await hashPassword(generateToken("pwd_"));
 		const defaultBalance = siteMode === "shared" ? 100 : 0;
 
 		// Check if username already taken, append suffix if so

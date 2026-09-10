@@ -291,8 +291,7 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 					tokens={tokens}
 					onCreate={handleTokenCreate}
 					onDelete={handleTokenDelete}
-					onReveal={handleTokenReveal}
-				/>
+									/>
 			);
 		}
 		if (activeTab === "usage") {

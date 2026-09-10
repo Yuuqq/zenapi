@@ -40,6 +40,10 @@ export const tokenAuth = createMiddleware<AppEnv>(async (c, next) => {
 		return jsonError(c, 403, "token_disabled", "token_disabled");
 	}
 
+	// Pre-authorization check (e.g. 1000 quota tokens or $0.05)
+	const PRE_AUTH_QUOTA = 1000;
+	const PRE_AUTH_BALANCE = 0.05;
+
 	const quotaTotal =
 		record.quota_total === null || record.quota_total === undefined
 			? null
@@ -49,7 +53,12 @@ export const tokenAuth = createMiddleware<AppEnv>(async (c, next) => {
 		Number.isNaN(quotaTotal) ? null : quotaTotal,
 		Number.isNaN(quotaUsed) ? 0 : quotaUsed,
 	);
-	if (!canConsumeQuota(normalized.quotaTotal, normalized.quotaUsed, 1)) {
+
+	if (normalized.quotaTotal !== null) {
+		if (!canConsumeQuota(normalized.quotaTotal, normalized.quotaUsed, PRE_AUTH_QUOTA)) {
+			return jsonError(c, 402, "quota_exceeded", "quota_exceeded");
+		}
+	} else if (!canConsumeQuota(normalized.quotaTotal, normalized.quotaUsed, 1)) {
 		return jsonError(c, 402, "quota_exceeded", "quota_exceeded");
 	}
 
@@ -68,7 +77,7 @@ export const tokenAuth = createMiddleware<AppEnv>(async (c, next) => {
 		if (!user || user.status !== "active") {
 			return jsonError(c, 403, "user_disabled", "user_disabled");
 		}
-		if (user.balance <= 0) {
+		if (user.balance <= PRE_AUTH_BALANCE) {
 			return jsonError(c, 402, "insufficient_balance", "insufficient_balance");
 		}
 	}

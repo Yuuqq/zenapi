@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { generateToken, sha256Hex } from "../utils/crypto";
+import { generateToken, sha256Hex, hashPassword, verifyPassword } from "../utils/crypto";
 import { jsonError } from "../utils/http";
 import { safeJsonParse } from "../utils/json";
 import { nowIso } from "../utils/time";
@@ -15,7 +15,6 @@ type TokenRow = {
 	quota_used: number;
 	status: string;
 	allowed_channels: string | null;
-	token_plain?: string | null;
 };
 
 /**
@@ -48,14 +47,13 @@ tokens.post("/", async (c) => {
 			: Number(body.quota_total);
 
 	await c.env.DB.prepare(
-		"INSERT INTO tokens (id, name, key_hash, key_prefix, token_plain, quota_total, quota_used, status, allowed_channels, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"INSERT INTO tokens (id, name, key_hash, key_prefix, quota_total, quota_used, status, allowed_channels, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	)
 		.bind(
 			id,
 			body.name,
 			tokenHash,
 			keyPrefix,
-			rawToken,
 			Number.isNaN(quotaTotal) ? null : quotaTotal,
 			0,
 			body.status ?? "active",
@@ -115,21 +113,6 @@ tokens.patch("/:id", async (c) => {
 	return c.json({ ok: true });
 });
 
-/**
- * Reveals a stored API token.
- */
-tokens.get("/:id/reveal", async (c) => {
-	const id = c.req.param("id");
-	const record = await c.env.DB.prepare(
-		"SELECT token_plain FROM tokens WHERE id = ?",
-	)
-		.bind(id)
-		.first<{ token_plain?: string | null }>();
-	if (!record) {
-		return jsonError(c, 404, "token_not_found", "token_not_found");
-	}
-	return c.json({ token: record.token_plain ?? null });
-});
 
 /**
  * Deletes an API token.

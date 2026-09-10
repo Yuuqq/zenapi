@@ -25,7 +25,6 @@ CREATE TABLE IF NOT EXISTS tokens (
   name TEXT NOT NULL,
   key_hash TEXT NOT NULL,
   key_prefix TEXT NOT NULL,
-  token_plain TEXT,
   quota_total INTEGER,
   quota_used INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'active',

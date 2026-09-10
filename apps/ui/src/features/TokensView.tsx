@@ -13,8 +13,7 @@ type TokensViewProps = {
 	onPageChange: (next: number) => void;
 	onPageSizeChange: (next: number) => void;
 	onSubmit: (event: Event) => void;
-	onReveal: (id: string) => void;
-	onToggle: (id: string, status: string) => void;
+		onToggle: (id: string, status: string) => void;
 	onDelete: (id: string) => void;
 };
 
@@ -35,8 +34,7 @@ export const TokensView = ({
 	onPageChange,
 	onPageSizeChange,
 	onSubmit,
-	onReveal,
-	onToggle,
+		onToggle,
 	onDelete,
 }: TokensViewProps) => {
 	const pageItems = buildPageItems(tokenPage, tokenTotalPages);

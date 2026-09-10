@@ -14,28 +14,27 @@ This document contains a comprehensive code review of the ZenAPI repository, foc
 ### HIGH
 
 **1. Plain Text API Tokens Stored in Database**
-- **File:** `apps/worker/src/routes/tokens.ts` (Lines generating and inserting tokens)
+- **File:** `apps/worker/src/routes/tokens.ts` and `apps/worker/src/routes/user-api.ts`
 - **Impact:** Although tokens are hashed for authentication (`key_hash`), they are also stored in plain text in the `token_plain` column to support the `/reveal` endpoint. If the database is compromised, all user API tokens are exposed.
 - **Fix Suggestion:** Do not store `token_plain`. The `/reveal` functionality should be removed. Instead, display the token to the user only once upon creation.
 
 **2. Heavy Unbounded Aggregation Queries on Every Request**
-- **File:** `apps/worker/src/routes/models.ts`
-- **Impact:** The `GET /api/models` endpoint performs multiple heavy `GROUP BY` aggregations on the `usage_logs` table spanning up to 30 days of data on *every request*. As the `usage_logs` table grows, this will cause significant performance degradation, increased latency, and high D1 read usage, potentially leading to a Denial of Service.
+- **File:** `apps/worker/src/routes/user-api.ts` (User Dashboard)
+- **Impact:** The user dashboard endpoint (`GET /api/u/dashboard`) performs a query `LEFT JOIN usage_logs` on the `channels` table spanning the entire history (no date filter). As the `usage_logs` table grows, this will cause significant performance degradation, increased latency, and high D1 read usage. The previously reported `GET /api/models` issue is less critical as it is protected behind `adminAuth`, whereas the user dashboard is accessible to all users.
 - **Fix Suggestion:**
-  - Introduce caching for the `/models` endpoint using Cloudflare KV or in-memory variables.
-  - Alternatively, move the aggregation to a background cron job that populates a materialized view or summary table.
+  - Add date filters to the `LEFT JOIN usage_logs` in the user dashboard, or pre-aggregate channel statistics.
 
 ### MEDIUM
 
-**1. Potential D1 Batch Size Limits in Pricing Updates**
+**1. N+1 SELECT Issue in Pricing Updates**
 - **File:** `apps/worker/src/routes/models.ts` (`PUT /prices/:modelId`)
-- **Impact:** The endpoint processes an array of prices (`body.prices`) and queues them into a single `db.batch(stmts)` call. Cloudflare D1 has strict limits on the number of statements in a single batch transaction. If a user submits a large array, the batch execution will fail.
-- **Fix Suggestion:** Chunk the `stmts` array into smaller batches (e.g., 50-100 statements per chunk) before calling `db.batch()`.
+- **Impact:** The endpoint processes an array of prices and loops over them, executing a `SELECT` statement for each channel to fetch existing models. This N+1 query pattern can lead to performance issues and high read usage. While D1's batch limit is around 1000 statements, the N+1 SELECTs are the primary bottleneck here since this is an admin endpoint updating by channel count.
+- **Fix Suggestion:** Fetch all necessary channels in a single query before the loop using an `IN` clause, then process the updates in memory before queuing the `batch` updates.
 
-**2. Token Quota Enforcement Only Applied Post-Request**
+**2. Insufficient Pre-Authorization of Quota/Balance**
 - **File:** `apps/worker/src/middleware/tokenAuth.ts`
-- **Impact:** The `canConsumeQuota` check in the middleware validates if the token has *any* remaining quota (checking against `1`). For streaming or large requests, the actual cost is only deducted after the request finishes in `proxy.ts`. While common for streaming APIs, this allows users to slightly overdraw their quota/balance on their final request.
-- **Fix Suggestion:** Consider checking for a minimum positive balance threshold based on the requested model's pricing.
+- **Impact:** The `canConsumeQuota` check in the middleware validates if the token has *any* remaining quota (checking against `1`) and the user has a balance > 0. However, the system relies on post-request deduction (`total_tokens`) without locking. With concurrent requests or TOCTOU (Time-of-Check to Time-of-Use) issues, users can significantly overdraw their quota/balance, as there is no effective pre-authorization or deduction lock.
+- **Fix Suggestion:** Implement a robust pre-authorization mechanism (e.g., deducting an estimated cost before the request and refunding the difference after) or strict concurrency control.
 
 ### LOW
 

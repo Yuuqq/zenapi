@@ -188,21 +188,30 @@ models.put("/prices/:modelId", async (c) => {
 	const stmts: ReturnType<typeof db.prepare>[] = [];
 	const now = new Date().toISOString();
 
+	const channelIds = body.prices.map((item: any) => item.channel_id).filter((id: any) => typeof id === "string");
+	if (channelIds.length === 0) {
+		return jsonError(c, 400, "no valid channel_ids found", "invalid_body");
+	}
+
+	const placeholders = channelIds.map(() => "?").join(",");
+	const channels = await db.prepare(`SELECT id, models_json FROM channels WHERE id IN (${placeholders})`).bind(...channelIds).all<{ id: string; models_json: string | null }>();
+	const channelMap = new Map<string, string | null>();
+	for (const ch of channels.results ?? []) {
+		channelMap.set(ch.id, ch.models_json);
+	}
+
 	for (const item of body.prices) {
 		if (!item.channel_id || typeof item.channel_id !== "string") {
 			return jsonError(c, 400, "each price entry must have a channel_id", "invalid_body");
 		}
 
-		const row = await db
-			.prepare("SELECT models_json FROM channels WHERE id = ?")
-			.bind(item.channel_id)
-			.first<{ models_json: string | null }>();
+		const models_json = channelMap.get(item.channel_id);
 
-		if (!row) {
+		if (models_json === undefined) {
 			return jsonError(c, 404, `channel ${item.channel_id} not found`, "not_found");
 		}
 
-		const pricings = extractModelPricings({ models_json: row.models_json });
+		const pricings = extractModelPricings({ models_json });
 		const entry = pricings.find((p) => p.id === modelId);
 		if (!entry) {
 			return jsonError(
@@ -224,8 +233,10 @@ models.put("/prices/:modelId", async (c) => {
 		);
 	}
 
-	if (stmts.length > 0) {
-		await db.batch(stmts);
+	// Chunk stmts to avoid D1 limits
+	const chunkSize = 100;
+	for (let i = 0; i < stmts.length; i += chunkSize) {
+		await db.batch(stmts.slice(i, i + chunkSize));
 	}
 
 	return c.json({ ok: true });

@@ -6,7 +6,7 @@ import {
 	getSessionTtlHours,
 	setAdminPasswordHash,
 } from "../services/settings";
-import { generateToken, sha256Hex } from "../utils/crypto";
+import { generateToken, sha256Hex, hashPassword, verifyPassword } from "../utils/crypto";
 import { jsonError } from "../utils/http";
 import { addHours, nowIso } from "../utils/time";
 
@@ -22,12 +22,12 @@ auth.post("/login", async (c) => {
 	}
 
 	const password = String(body.password);
-	const passwordHash = await sha256Hex(password);
+	const passwordHash = await hashPassword(password);
 	const storedHash = await getAdminPasswordHash(c.env.DB);
 
 	if (!storedHash) {
 		await setAdminPasswordHash(c.env.DB, passwordHash);
-	} else if (passwordHash !== storedHash) {
+	} else if (!(await verifyPassword(password, storedHash))) {
 		return jsonError(c, 401, "invalid_password", "invalid_password");
 	}
 

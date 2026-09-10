@@ -816,8 +816,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 					onPageChange={handleTokenPageChange}
 					onPageSizeChange={handleTokenPageSizeChange}
 					onSubmit={handleTokenSubmit}
-					onReveal={handleTokenReveal}
-					onToggle={handleTokenToggle}
+										onToggle={handleTokenToggle}
 					onDelete={handleTokenDelete}
 				/>
 			);

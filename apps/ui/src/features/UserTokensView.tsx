@@ -6,15 +6,13 @@ type UserTokensViewProps = {
 	tokens: Token[];
 	onCreate: (name: string) => void;
 	onDelete: (id: string) => void;
-	onReveal: (id: string) => void;
-};
+	};
 
 export const UserTokensView = ({
 	tokens,
 	onCreate,
 	onDelete,
-	onReveal,
-}: UserTokensViewProps) => {
+	}: UserTokensViewProps) => {
 	const [showModal, setShowModal] = useState(false);
 	const [tokenName, setTokenName] = useState("");
 

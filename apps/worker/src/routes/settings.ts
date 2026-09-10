@@ -14,7 +14,7 @@ import {
 	type RegistrationMode,
 	type SiteMode,
 } from "../services/settings";
-import { sha256Hex } from "../utils/crypto";
+import { sha256Hex, hashPassword, verifyPassword } from "../utils/crypto";
 import { jsonError } from "../utils/http";
 
 const settings = new Hono<AppEnv>();
@@ -77,7 +77,7 @@ settings.put("/", async (c) => {
 	}
 
 	if (typeof body.admin_password === "string" && body.admin_password.trim()) {
-		const hash = await sha256Hex(body.admin_password.trim());
+		const hash = await hashPassword(body.admin_password.trim());
 		await setAdminPasswordHash(c.env.DB, hash);
 		touched = true;
 	}
