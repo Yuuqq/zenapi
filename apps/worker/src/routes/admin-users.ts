@@ -29,10 +29,18 @@ adminUsers.post("/", async (c) => {
 	const name = String(body.name).trim();
 	const password = String(body.password);
 
+	if (!email.includes("@")) {
+		return jsonError(c, 400, "invalid_email", "invalid_email");
+	}
+	if (name.includes("@")) {
+		return jsonError(c, 400, "invalid_name", "username cannot contain @");
+	}
+
+	const nameLower = name.toLowerCase();
 	const existing = await c.env.DB.prepare(
-		"SELECT id FROM users WHERE email = ? OR LOWER(name) = ?",
+		"SELECT id FROM users WHERE email IN (?, ?) OR LOWER(name) IN (?, ?)",
 	)
-		.bind(email, name.toLowerCase())
+		.bind(email, nameLower, email, nameLower)
 		.first();
 
 	if (existing) {
@@ -100,12 +108,30 @@ adminUsers.patch("/:id", async (c) => {
 	const now = nowIso();
 	const newBalance =
 		body.balance !== undefined ? Number(body.balance) : existing.balance;
+	const newName =
+		body.name !== undefined ? String(body.name).trim() : existing.name;
+
+	if (newName.includes("@")) {
+		return jsonError(c, 400, "invalid_name", "username cannot contain @");
+	}
+
+	if (newName.toLowerCase() !== existing.name.toLowerCase()) {
+		const nameLower = newName.toLowerCase();
+		const conflict = await c.env.DB.prepare(
+			"SELECT id FROM users WHERE id != ? AND (email IN (?, ?) OR LOWER(name) IN (?, ?))",
+		)
+			.bind(id, existing.email, nameLower, existing.email, nameLower)
+			.first();
+		if (conflict) {
+			return jsonError(c, 409, "email_or_name_exists", "email_or_name_exists");
+		}
+	}
 
 	await c.env.DB.prepare(
 		"UPDATE users SET name = ?, role = ?, balance = ?, status = ?, updated_at = ? WHERE id = ?",
 	)
 		.bind(
-			body.name ?? existing.name,
+			newName,
 			body.role ?? existing.role,
 			Number.isNaN(newBalance) ? existing.balance : newBalance,
 			body.status ?? existing.status,

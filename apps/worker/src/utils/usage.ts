@@ -76,10 +76,37 @@ export function parseUsageFromJson(payload: unknown): NormalizedUsage | null {
 	const data = payload as Record<string, unknown>;
 	const usage =
 		data.usage ??
+		(data.message && typeof data.message === "object"
+			? (data.message as Record<string, unknown>).usage
+			: null) ??
 		(data.data && typeof data.data === "object"
 			? (data.data as Record<string, unknown>).usage
 			: null);
 	return normalizeUsage(usage);
+}
+
+/**
+ * Merges usage from multiple SSE events by taking the max of each counter.
+ * Anthropic streams put input tokens on message_start and output on message_delta.
+ */
+function mergeUsageMax(
+	current: NormalizedUsage | null,
+	incoming: NormalizedUsage,
+): NormalizedUsage {
+	if (!current) {
+		return incoming;
+	}
+	const promptTokens = Math.max(current.promptTokens, incoming.promptTokens);
+	const completionTokens = Math.max(
+		current.completionTokens,
+		incoming.completionTokens,
+	);
+	const totalTokens = Math.max(
+		current.totalTokens,
+		incoming.totalTokens,
+		promptTokens + completionTokens,
+	);
+	return { totalTokens, promptTokens, completionTokens };
 }
 
 export function parseUsageFromHeaders(
@@ -135,6 +162,17 @@ export async function parseUsageFromSse(
 	const start = Date.now();
 	let firstTokenLatencyMs: number | null = null;
 
+	const absorbCandidate = (payload: string) => {
+		if (firstTokenLatencyMs === null) {
+			firstTokenLatencyMs = Date.now() - start;
+		}
+		const parsed = safeJsonParse<unknown>(payload, null);
+		const candidate = parseUsageFromJson(parsed);
+		if (candidate) {
+			usage = mergeUsageMax(usage, candidate);
+		}
+	};
+
 	while (true) {
 		const { done, value } = await reader.read();
 		if (done) {
@@ -148,14 +186,7 @@ export async function parseUsageFromSse(
 			if (line.startsWith("data:")) {
 				const payload = line.slice(5).trim();
 				if (payload && payload !== "[DONE]") {
-					if (firstTokenLatencyMs === null) {
-						firstTokenLatencyMs = Date.now() - start;
-					}
-					const parsed = safeJsonParse<unknown>(payload, null);
-					const candidate = parseUsageFromJson(parsed);
-					if (candidate) {
-						usage = candidate;
-					}
+					absorbCandidate(payload);
 				}
 			}
 			newlineIndex = buffer.indexOf("\n");
@@ -166,14 +197,7 @@ export async function parseUsageFromSse(
 	if (remaining.startsWith("data:")) {
 		const payload = remaining.slice(5).trim();
 		if (payload && payload !== "[DONE]") {
-			if (firstTokenLatencyMs === null) {
-				firstTokenLatencyMs = Date.now() - start;
-			}
-			const parsed = safeJsonParse<unknown>(payload, null);
-			const candidate = parseUsageFromJson(parsed);
-			if (candidate) {
-				usage = candidate;
-			}
+			absorbCandidate(payload);
 		}
 	}
 

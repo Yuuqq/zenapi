@@ -67,12 +67,26 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 		.bind("active")
 		.all();
 	const activeChannels = (channelResult.results ?? []) as ChannelRecord[];
+	const allowedChannels = filterAllowedChannels(activeChannels, tokenRecord);
 
 	const siteMode = await getSiteMode(c.env.DB);
 	const useSharedFilter = siteMode === "shared" && !!tokenRecord.user_id;
 
-	// Resolve channel/model routing syntax (uses original model name)
-	const { targetChannel, actualModel } = resolveChannelRoute(model, activeChannels);
+	// Resolve channel/model routing only against token-allowed channels
+	const { targetChannel, actualModel } = resolveChannelRoute(
+		model,
+		allowedChannels,
+	);
+	// Channel exists but is outside the token whitelist → 403
+	if (!targetChannel && model?.includes("/")) {
+		const { targetChannel: blockedChannel } = resolveChannelRoute(
+			model,
+			activeChannels,
+		);
+		if (blockedChannel) {
+			return jsonError(c, 403, "channel_not_allowed", "channel_not_allowed");
+		}
+	}
 	const effectiveModel = targetChannel ? actualModel : model;
 
 	// If channel routing matched, replace model in the request bodies
@@ -91,23 +105,20 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 			return jsonError(c, 403, "model_not_shared", "model_not_shared");
 		}
 		candidates = [targetChannel];
+	} else if (resolvedNames.length > 0) {
+		const supportsFn = useSharedFilter
+			? channelSupportsAnySharedModel
+			: channelSupportsAnyModel;
+		candidates = allowedChannels.filter((channel) =>
+			supportsFn(channel, resolvedNames),
+		);
 	} else {
-		const allowedChannels = filterAllowedChannels(activeChannels, tokenRecord);
-		if (resolvedNames.length > 0) {
-			const supportsFn = useSharedFilter
-				? channelSupportsAnySharedModel
-				: channelSupportsAnyModel;
-			candidates = allowedChannels.filter((channel) =>
-				supportsFn(channel, resolvedNames),
-			);
-		} else {
-			const supportsFn = useSharedFilter
-				? channelSupportsSharedModel
-				: channelSupportsModel;
-			candidates = allowedChannels.filter((channel) =>
-				supportsFn(channel, null),
-			);
-		}
+		const supportsFn = useSharedFilter
+			? channelSupportsSharedModel
+			: channelSupportsModel;
+		candidates = allowedChannels.filter((channel) =>
+			supportsFn(channel, null),
+		);
 	}
 
 	if (candidates.length === 0) {
@@ -192,8 +203,25 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 						headers.set("Authorization", `Bearer ${apiKey}`);
 						headers.set("content-type", "application/json");
 
-						const bodyToSend = channelOpenaiBody
-							? JSON.stringify(channelOpenaiBody)
+						// Ensure stream usage is returned so billing is not zeroed
+						let openaiPayload = channelOpenaiBody;
+						if (openaiPayload && isStream) {
+							const existingOptions =
+								openaiPayload.stream_options &&
+								typeof openaiPayload.stream_options === "object"
+									? (openaiPayload.stream_options as Record<string, unknown>)
+									: {};
+							openaiPayload = {
+								...openaiPayload,
+								stream_options: {
+									...existingOptions,
+									include_usage: true,
+								},
+							};
+						}
+
+						const bodyToSend = openaiPayload
+							? JSON.stringify(openaiPayload)
 							: channelRequestText;
 
 						response = await fetch(target, {

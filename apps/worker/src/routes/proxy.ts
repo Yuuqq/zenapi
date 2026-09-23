@@ -288,7 +288,6 @@ proxy.get("/models", tokenAuth, async (c) => {
 proxy.all("/*", tokenAuth, async (c) => {
 	const tokenRecord = c.get("tokenRecord") as TokenRecord;
 	let requestText = await c.req.text();
-	const originalRequestText = requestText;
 	const parsedBody = requestText
 		? safeJsonParse<Record<string, unknown> | null>(requestText, null)
 		: null;
@@ -336,12 +335,26 @@ proxy.all("/*", tokenAuth, async (c) => {
 		.bind("active")
 		.all();
 	const activeChannels = (channelResult.results ?? []) as ChannelRecord[];
+	const allowedChannels = filterAllowedChannels(activeChannels, tokenRecord);
 
 	const siteMode = await getSiteMode(c.env.DB);
 	const useSharedFilter = siteMode === "shared" && !!tokenRecord.user_id;
 
-	// Resolve channel/model routing syntax (uses original model name)
-	const { targetChannel, actualModel } = resolveChannelRoute(model, activeChannels);
+	// Resolve channel/model routing only against token-allowed channels
+	const { targetChannel, actualModel } = resolveChannelRoute(
+		model,
+		allowedChannels,
+	);
+	// Channel exists but is outside the token whitelist → 403
+	if (!targetChannel && model?.includes("/")) {
+		const { targetChannel: blockedChannel } = resolveChannelRoute(
+			model,
+			activeChannels,
+		);
+		if (blockedChannel) {
+			return jsonError(c, 403, "channel_not_allowed", "channel_not_allowed");
+		}
+	}
 	const effectiveModel = targetChannel ? actualModel : model;
 
 	// If channel routing matched, replace model in the request body
@@ -366,24 +379,21 @@ proxy.all("/*", tokenAuth, async (c) => {
 			);
 		}
 		candidates = [targetChannel];
+	} else if (resolvedNames.length > 0) {
+		const supportsFn = useSharedFilter
+			? channelSupportsAnySharedModel
+			: channelSupportsAnyModel;
+		candidates = allowedChannels.filter((channel) =>
+			supportsFn(channel, resolvedNames),
+		);
 	} else {
-		const allowedChannels = filterAllowedChannels(activeChannels, tokenRecord);
-		if (resolvedNames.length > 0) {
-			const supportsFn = useSharedFilter
-				? channelSupportsAnySharedModel
-				: channelSupportsAnyModel;
-			candidates = allowedChannels.filter((channel) =>
-				supportsFn(channel, resolvedNames),
-			);
-		} else {
-			// No model specified — all channels qualify
-			const supportsFn = useSharedFilter
-				? channelSupportsSharedModel
-				: channelSupportsModel;
-			candidates = allowedChannels.filter((channel) =>
-				supportsFn(channel, null),
-			);
-		}
+		// No model specified — all allowed channels qualify
+		const supportsFn = useSharedFilter
+			? channelSupportsSharedModel
+			: channelSupportsModel;
+		candidates = allowedChannels.filter((channel) =>
+			supportsFn(channel, null),
+		);
 	}
 
 	if (candidates.length === 0) {
@@ -480,9 +490,13 @@ proxy.all("/*", tokenAuth, async (c) => {
 					) {
 						const strippedBase = normalizeBaseUrl(channel.base_url);
 						const fallbackTarget = cfSafeUrl(`${strippedBase}${fallbackSubPath}${querySuffix}`);
-						const fallbackBody = mutatedStreamOptions
-							? originalRequestText
-							: channelRequestText;
+						// Keep rewritten model; only strip injected stream_options
+						let fallbackBody = channelRequestText;
+						if (mutatedStreamOptions && channelParsedBody) {
+							const { stream_options: _stripped, ...rest } =
+								channelParsedBody;
+							fallbackBody = JSON.stringify(rest);
+						}
 						response = await fetch(fallbackTarget, {
 							method: c.req.method,
 							headers,

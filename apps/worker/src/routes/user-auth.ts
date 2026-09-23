@@ -39,14 +39,18 @@ userAuthRoutes.post("/register", async (c) => {
 	if (!email.includes("@")) {
 		return jsonError(c, 400, "invalid_email", "invalid_email");
 	}
+	if (name.includes("@")) {
+		return jsonError(c, 400, "invalid_name", "username cannot contain @");
+	}
 	if (password.length < 6) {
 		return jsonError(c, 400, "password_too_short", "password_too_short");
 	}
 
+	const nameLower = name.toLowerCase();
 	const existing = await c.env.DB.prepare(
-		"SELECT id FROM users WHERE email = ? OR LOWER(name) = ?",
+		"SELECT id FROM users WHERE email IN (?, ?) OR LOWER(name) IN (?, ?)",
 	)
-		.bind(email, name.toLowerCase())
+		.bind(email, nameLower, email, nameLower)
 		.first();
 
 	if (existing) {
