@@ -89,6 +89,20 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 	}
 	const effectiveModel = targetChannel ? actualModel : model;
 
+	// `channel/model-id` syntax bypasses the raw-name check above, so re-check
+	// the routed model id against the alias-only set.
+	if (targetChannel && actualModel && actualModel !== model) {
+		const aliasOnlySet = await loadAliasOnlySet(c.env.DB);
+		if (aliasOnlySet.has(actualModel)) {
+			return jsonError(
+				c,
+				404,
+				"model_not_found",
+				`The model '${actualModel}' does not exist or is not available.`,
+			);
+		}
+	}
+
 	// If channel routing matched, replace model in the request bodies
 	let effectiveRequestText = requestText;
 	if (targetChannel && parsedBody && actualModel !== null) {
@@ -101,8 +115,20 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 
 	let candidates: ChannelRecord[];
 	if (targetChannel) {
-		if (useSharedFilter && !channelSupportsSharedModel(targetChannel, actualModel)) {
-			return jsonError(c, 403, "model_not_shared", "model_not_shared");
+		if (useSharedFilter) {
+			if (!channelSupportsSharedModel(targetChannel, actualModel)) {
+				return jsonError(c, 403, "model_not_shared", "model_not_shared");
+			}
+		} else if (!channelSupportsModel(targetChannel, actualModel)) {
+			// Mirror the OpenAI proxy: an explicit channel route must still honour
+			// the channel's model list, otherwise disabled/unpriced models are
+			// reachable (and billed at zero) through `channel/model` syntax.
+			return jsonError(
+				c,
+				404,
+				"model_not_found",
+				`The model '${actualModel}' does not exist on channel '${targetChannel.name}'.`,
+			);
 		}
 		candidates = [targetChannel];
 	} else if (resolvedNames.length > 0) {

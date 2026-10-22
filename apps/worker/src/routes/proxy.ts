@@ -110,14 +110,32 @@ export function filterAllowedChannels(
 	channels: ChannelRecord[],
 	tokenRecord: TokenRecord,
 ): ChannelRecord[] {
-	const allowed = safeJsonParse<string[] | null>(
-		tokenRecord.allowed_channels,
-		null,
-	);
-	if (!allowed || allowed.length === 0) {
+	const raw = tokenRecord.allowed_channels;
+	// Unset allowlist → unrestricted (tokens created without a restriction).
+	if (!raw) {
 		return channels;
 	}
-	const allowedSet = new Set(allowed);
+	const parsed = safeJsonParse<unknown>(raw, null);
+	if (parsed === null) {
+		// "null" means unrestricted; an unparseable allowlist must fail closed
+		// instead of silently granting access to every channel.
+		return raw.trim() === "null" ? channels : [];
+	}
+	// Accept a lone id as a one-element allowlist rather than treating it as
+	// "no restriction" (the previous behaviour granted every channel).
+	const entries = Array.isArray(parsed) ? parsed : [parsed];
+	if (Array.isArray(parsed) && parsed.length === 0) {
+		return channels;
+	}
+	const allowedSet = new Set(
+		entries
+			.filter((value): value is string => typeof value === "string")
+			.map((value) => value.trim())
+			.filter((value) => value.length > 0),
+	);
+	if (allowedSet.size === 0) {
+		return [];
+	}
 	return channels.filter((channel) => allowedSet.has(channel.id));
 }
 
@@ -356,6 +374,20 @@ proxy.all("/*", tokenAuth, async (c) => {
 		}
 	}
 	const effectiveModel = targetChannel ? actualModel : model;
+
+	// `channel/model-id` syntax bypasses the raw-name check above, so re-check
+	// the routed model id against the alias-only set.
+	if (targetChannel && actualModel && actualModel !== model) {
+		const aliasOnlySet = await loadAliasOnlySet(c.env.DB);
+		if (aliasOnlySet.has(actualModel)) {
+			return jsonError(
+				c,
+				404,
+				"model_not_found",
+				`The model '${actualModel}' does not exist or is not available.`,
+			);
+		}
+	}
 
 	// If channel routing matched, replace model in the request body
 	if (targetChannel && parsedBody && actualModel !== null) {
