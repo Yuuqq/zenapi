@@ -12,7 +12,6 @@
 			"!bun.lock",
 			"!helloagents",
 			"!.agents",
-			"!tests",
 			"!**/node_modules"
 		]
 	},

@@ -3,9 +3,9 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "wrangler dev",
-		"deploy": "wrangler deploy",
-		"db:migrate": "wrangler d1 migrations apply DB --local"
+		"dev": "node ../../node_modules/wrangler/bin/wrangler.js dev",
+		"deploy": "node ../../node_modules/wrangler/bin/wrangler.js deploy",
+		"db:migrate": "node ../../node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local"
 	},
 	"dependencies": {
 		"hono": "^4.2.7"
@@ -13,6 +13,6 @@
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20240222.0",
 		"typescript": "^5.4.5",
-		"wrangler": "^3.48.0"
+		"wrangler": "^4.80.0"
 	}
 }

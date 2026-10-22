@@ -114,9 +114,7 @@ export const UsersView = ({
 						<tbody>
 							{users.map((user) => (
 								<tr class="border-b border-stone-50">
-									<td class="py-2.5 pr-4 text-stone-700">
-										{user.email}
-									</td>
+									<td class="py-2.5 pr-4 text-stone-700">{user.email}</td>
 									<td class="py-2.5 pr-4 font-medium text-stone-700">
 										{user.name}
 									</td>
@@ -142,9 +140,7 @@ export const UsersView = ({
 													: "bg-red-50 text-red-600"
 											}`}
 										>
-											{user.status === "active"
-												? "启用"
-												: "停用"}
+											{user.status === "active" ? "启用" : "停用"}
 										</span>
 									</td>
 									<td class="py-2.5 pr-4 text-xs text-stone-500">
@@ -165,23 +161,16 @@ export const UsersView = ({
 												onClick={() =>
 													onUpdate(user.id, {
 														status:
-															user.status ===
-															"active"
-																? "disabled"
-																: "active",
+															user.status === "active" ? "disabled" : "active",
 													})
 												}
 											>
-												{user.status === "active"
-													? "停用"
-													: "启用"}
+												{user.status === "active" ? "停用" : "启用"}
 											</button>
 											<button
 												type="button"
 												class="text-xs text-red-500 hover:text-red-600"
-												onClick={() =>
-													onDelete(user.id)
-												}
+												onClick={() => onDelete(user.id)}
 											>
 												删除
 											</button>
@@ -207,10 +196,8 @@ export const UsersView = ({
 							创建用户
 						</h3>
 						<form class="grid gap-4" onSubmit={handleCreate}>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
-									邮箱
-								</label>
+							<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+								<span class="block">邮箱</span>
 								<input
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									type="email"
@@ -219,18 +206,14 @@ export const UsersView = ({
 									onInput={(e) =>
 										setCreateForm((p) => ({
 											...p,
-											email:
-												(
-													e.currentTarget as HTMLInputElement
-												)?.value ?? "",
+											email: (e.currentTarget as HTMLInputElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
-									用户名
-								</label>
+							</label>
+
+							<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+								<span class="block">用户名</span>
 								<input
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									type="text"
@@ -239,18 +222,14 @@ export const UsersView = ({
 									onInput={(e) =>
 										setCreateForm((p) => ({
 											...p,
-											name:
-												(
-													e.currentTarget as HTMLInputElement
-												)?.value ?? "",
+											name: (e.currentTarget as HTMLInputElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
-									密码
-								</label>
+							</label>
+
+							<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+								<span class="block">密码</span>
 								<input
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									type="password"
@@ -260,17 +239,14 @@ export const UsersView = ({
 										setCreateForm((p) => ({
 											...p,
 											password:
-												(
-													e.currentTarget as HTMLInputElement
-												)?.value ?? "",
+												(e.currentTarget as HTMLInputElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
-									初始余额
-								</label>
+							</label>
+
+							<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+								<span class="block">初始余额</span>
 								<input
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									type="number"
@@ -280,13 +256,12 @@ export const UsersView = ({
 										setCreateForm((p) => ({
 											...p,
 											balance:
-												(
-													e.currentTarget as HTMLInputElement
-												)?.value ?? "0",
+												(e.currentTarget as HTMLInputElement)?.value ?? "0",
 										}))
 									}
 								/>
-							</div>
+							</label>
+
 							<div class="flex justify-end gap-3">
 								<button
 									type="button"
@@ -323,10 +298,8 @@ export const UsersView = ({
 							编辑用户: {editingUser.email}
 						</h3>
 						<form class="grid gap-4" onSubmit={handleEdit}>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
-									用户名
-								</label>
+							<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+								<span class="block">用户名</span>
 								<input
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									type="text"
@@ -335,18 +308,14 @@ export const UsersView = ({
 									onInput={(e) =>
 										setEditForm((p) => ({
 											...p,
-											name:
-												(
-													e.currentTarget as HTMLInputElement
-												)?.value ?? "",
+											name: (e.currentTarget as HTMLInputElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
-									余额
-								</label>
+							</label>
+
+							<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+								<span class="block">余额</span>
 								<input
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									type="number"
@@ -356,17 +325,16 @@ export const UsersView = ({
 										setEditForm((p) => ({
 											...p,
 											balance:
-												(
-													e.currentTarget as HTMLInputElement
-												)?.value ?? "",
+												(e.currentTarget as HTMLInputElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+							</label>
+
+							<label class="block">
+								<span class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
 									状态
-								</label>
+								</span>
 								<select
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									value={editForm.status}
@@ -374,20 +342,18 @@ export const UsersView = ({
 										setEditForm((p) => ({
 											...p,
 											status:
-												(
-													e.currentTarget as HTMLSelectElement
-												)?.value ?? "",
+												(e.currentTarget as HTMLSelectElement)?.value ?? "",
 										}))
 									}
 								>
 									<option value="active">启用</option>
 									<option value="disabled">停用</option>
 								</select>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+							</label>
+							<label class="block">
+								<span class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
 									新密码（留空不修改）
-								</label>
+								</span>
 								<input
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									type="password"
@@ -396,13 +362,12 @@ export const UsersView = ({
 										setEditForm((p) => ({
 											...p,
 											password:
-												(
-													e.currentTarget as HTMLInputElement
-												)?.value ?? "",
+												(e.currentTarget as HTMLInputElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
+							</label>
+
 							<div class="flex justify-end gap-3">
 								<button
 									type="button"

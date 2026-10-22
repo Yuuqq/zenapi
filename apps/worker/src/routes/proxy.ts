@@ -2,30 +2,34 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { type TokenRecord, tokenAuth } from "../middleware/tokenAuth";
 import {
+	collectUniqueModelIds,
+	collectUniqueSharedModelIds,
+	extractSharedModels,
+} from "../services/channel-models";
+import { resolveChannelRoute } from "../services/channel-route";
+import {
 	type ChannelRecord,
 	createWeightedOrder,
 	extractModels,
 } from "../services/channels";
 import {
-	collectUniqueModelIds,
-	collectUniqueSharedModelIds,
-	extractSharedModels,
-} from "../services/channel-models";
-import {
 	anthropicToOpenaiResponse,
 	createAnthropicToOpenaiStreamTransform,
 	openaiToAnthropicRequest,
 } from "../services/format-converter";
-import { recordUsage } from "../services/usage";
+import {
+	loadAliasMap,
+	loadAliasOnlySet,
+	resolveModelNames,
+} from "../services/model-aliases";
 import { calculateCost, getModelPrice } from "../services/pricing";
 import { getSiteMode } from "../services/settings";
+import { recordUsage } from "../services/usage";
 import { jsonError } from "../utils/http";
 import { safeJsonParse } from "../utils/json";
-import { extractReasoningEffort } from "../utils/reasoning";
 import { parseApiKeys, shuffleArray } from "../utils/keys";
+import { extractReasoningEffort } from "../utils/reasoning";
 import { isRetryableStatus, sleep } from "../utils/retry";
-import { resolveChannelRoute } from "../services/channel-route";
-import { resolveModelNames, loadAliasMap, loadAliasOnlySet } from "../services/model-aliases";
 import { cfSafeUrl, normalizeBaseUrl } from "../utils/url";
 import {
 	type NormalizedUsage,
@@ -110,14 +114,32 @@ export function filterAllowedChannels(
 	channels: ChannelRecord[],
 	tokenRecord: TokenRecord,
 ): ChannelRecord[] {
-	const allowed = safeJsonParse<string[] | null>(
-		tokenRecord.allowed_channels,
-		null,
-	);
-	if (!allowed || allowed.length === 0) {
+	const raw = tokenRecord.allowed_channels;
+	// Unset allowlist → unrestricted (tokens created without a restriction).
+	if (!raw) {
 		return channels;
 	}
-	const allowedSet = new Set(allowed);
+	const parsed = safeJsonParse<unknown>(raw, null);
+	if (parsed === null) {
+		// "null" means unrestricted; an unparseable allowlist must fail closed
+		// instead of silently granting access to every channel.
+		return raw.trim() === "null" ? channels : [];
+	}
+	// Accept a lone id as a one-element allowlist rather than treating it as
+	// "no restriction" (the previous behaviour granted every channel).
+	const entries = Array.isArray(parsed) ? parsed : [parsed];
+	if (Array.isArray(parsed) && parsed.length === 0) {
+		return channels;
+	}
+	const allowedSet = new Set(
+		entries
+			.filter((value): value is string => typeof value === "string")
+			.map((value) => value.trim())
+			.filter((value) => value.length > 0),
+	);
+	if (allowedSet.size === 0) {
+		return [];
+	}
 	return channels.filter((channel) => allowedSet.has(channel.id));
 }
 
@@ -252,7 +274,12 @@ proxy.get("/models", tokenAuth, async (c) => {
 		: collectUniqueModelIds(allowed);
 
 	const now = Math.floor(Date.now() / 1000);
-	const modelData: Array<{ id: string; object: string; created: number; owned_by: string }> = [];
+	const modelData: Array<{
+		id: string;
+		object: string;
+		created: number;
+		owned_by: string;
+	}> = [];
 
 	// Load alias-only set to hide original names
 	const aliasOnlySet = await loadAliasOnlySet(c.env.DB);
@@ -306,7 +333,12 @@ proxy.all("/*", tokenAuth, async (c) => {
 	if (model && resolvedNames.length === 1) {
 		const aliasOnlySet = await loadAliasOnlySet(c.env.DB);
 		if (aliasOnlySet.has(model)) {
-			return jsonError(c, 404, "model_not_found", `The model '${model}' does not exist or is not available.`);
+			return jsonError(
+				c,
+				404,
+				"model_not_found",
+				`The model '${model}' does not exist or is not available.`,
+			);
 		}
 	}
 
@@ -357,6 +389,20 @@ proxy.all("/*", tokenAuth, async (c) => {
 	}
 	const effectiveModel = targetChannel ? actualModel : model;
 
+	// `channel/model-id` syntax bypasses the raw-name check above, so re-check
+	// the routed model id against the alias-only set.
+	if (targetChannel && actualModel && actualModel !== model) {
+		const aliasOnlySet = await loadAliasOnlySet(c.env.DB);
+		if (aliasOnlySet.has(actualModel)) {
+			return jsonError(
+				c,
+				404,
+				"model_not_found",
+				`The model '${actualModel}' does not exist or is not available.`,
+			);
+		}
+	}
+
 	// If channel routing matched, replace model in the request body
 	if (targetChannel && parsedBody && actualModel !== null) {
 		parsedBody.model = actualModel;
@@ -391,9 +437,7 @@ proxy.all("/*", tokenAuth, async (c) => {
 		const supportsFn = useSharedFilter
 			? channelSupportsSharedModel
 			: channelSupportsModel;
-		candidates = allowedChannels.filter((channel) =>
-			supportsFn(channel, null),
-		);
+		candidates = allowedChannels.filter((channel) => supportsFn(channel, null));
 	}
 
 	if (candidates.length === 0) {
@@ -416,7 +460,12 @@ proxy.all("/*", tokenAuth, async (c) => {
 			(ch) => (ch.api_format ?? "openai") !== "anthropic",
 		);
 		if (candidates.length === 0) {
-			return jsonError(c, 503, "no_available_channels", "no_available_channels");
+			return jsonError(
+				c,
+				503,
+				"no_available_channels",
+				"no_available_channels",
+			);
 		}
 	}
 
@@ -489,12 +538,13 @@ proxy.all("/*", tokenAuth, async (c) => {
 						fallbackSubPath
 					) {
 						const strippedBase = normalizeBaseUrl(channel.base_url);
-						const fallbackTarget = cfSafeUrl(`${strippedBase}${fallbackSubPath}${querySuffix}`);
+						const fallbackTarget = cfSafeUrl(
+							`${strippedBase}${fallbackSubPath}${querySuffix}`,
+						);
 						// Keep rewritten model; only strip injected stream_options
 						let fallbackBody = channelRequestText;
 						if (mutatedStreamOptions && channelParsedBody) {
-							const { stream_options: _stripped, ...rest } =
-								channelParsedBody;
+							const { stream_options: _stripped, ...rest } = channelParsedBody;
 							fallbackBody = JSON.stringify(rest);
 						}
 						response = await fetch(fallbackTarget, {
@@ -565,7 +615,10 @@ proxy.all("/*", tokenAuth, async (c) => {
 
 	const channelForUsage = selectedChannel ?? lastChannel;
 	if (channelForUsage && lastResponse) {
-		const price = getModelPrice(channelForUsage.models_json, selectedModelName ?? "");
+		const price = getModelPrice(
+			channelForUsage.models_json,
+			selectedModelName ?? "",
+		);
 		let errorCode: number | null = null;
 		let errorMessage: string | null = null;
 		if (!lastResponse.ok) {
@@ -587,7 +640,12 @@ proxy.all("/*", tokenAuth, async (c) => {
 				completionTokens: 0,
 			};
 			const cost = price
-				? calculateCost(price, normalized.promptTokens, normalized.completionTokens, normalized.totalTokens)
+				? calculateCost(
+						price,
+						normalized.promptTokens,
+						normalized.completionTokens,
+						normalized.totalTokens,
+					)
 				: 0;
 			const resolvedFirstTokenLatencyMs =
 				firstTokenLatencyMs ?? (isStream ? null : latencyMs);
@@ -674,7 +732,9 @@ proxy.all("/*", tokenAuth, async (c) => {
 					try {
 						logUsage("stream-fallback", immediateUsage, immediateSource);
 						await record(immediateUsage, null);
-					} catch { /* truly lost */ }
+					} catch {
+						/* truly lost */
+					}
 				});
 			if (executionCtx?.waitUntil) {
 				executionCtx.waitUntil(task);

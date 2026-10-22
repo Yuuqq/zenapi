@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { sha256Hex } from "../utils/crypto";
 import { jsonError } from "../utils/http";
+import { hashPassword } from "../utils/password";
 import { nowIso } from "../utils/time";
 
 const adminUsers = new Hono<AppEnv>();
@@ -22,7 +22,12 @@ adminUsers.get("/", async (c) => {
 adminUsers.post("/", async (c) => {
 	const body = await c.req.json().catch(() => null);
 	if (!body?.email || !body?.name || !body?.password) {
-		return jsonError(c, 400, "missing_fields", "email, name, password required");
+		return jsonError(
+			c,
+			400,
+			"missing_fields",
+			"email, name, password required",
+		);
 	}
 
 	const email = String(body.email).trim().toLowerCase();
@@ -48,7 +53,7 @@ adminUsers.post("/", async (c) => {
 	}
 
 	const id = crypto.randomUUID();
-	const passwordHash = await sha256Hex(password);
+	const passwordHash = await hashPassword(password);
 	const now = nowIso();
 	const balance = Number(body.balance ?? 0);
 
@@ -142,10 +147,8 @@ adminUsers.patch("/:id", async (c) => {
 
 	// If password is provided, update it
 	if (body.password) {
-		const passwordHash = await sha256Hex(String(body.password));
-		await c.env.DB.prepare(
-			"UPDATE users SET password_hash = ? WHERE id = ?",
-		)
+		const passwordHash = await hashPassword(String(body.password));
+		await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?")
 			.bind(passwordHash, id)
 			.run();
 	}

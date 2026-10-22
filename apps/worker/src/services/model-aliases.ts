@@ -75,9 +75,7 @@ export async function loadAliasMap(
 /**
  * Returns the set of model_ids that are alias-only (original name hidden).
  */
-export async function loadAliasOnlySet(
-	db: D1Database,
-): Promise<Set<string>> {
+export async function loadAliasOnlySet(db: D1Database): Promise<Set<string>> {
 	const result = await db
 		.prepare("SELECT DISTINCT model_id FROM model_aliases WHERE alias_only = 1")
 		.all<{ model_id: string }>();
@@ -89,16 +87,28 @@ export async function loadAliasOnlySet(
  */
 export async function listAllAliases(
 	db: D1Database,
-): Promise<Map<string, Array<{ alias: string; is_primary: boolean; alias_only: boolean }>>> {
+): Promise<
+	Map<
+		string,
+		Array<{ alias: string; is_primary: boolean; alias_only: boolean }>
+	>
+> {
 	const result = await db
 		.prepare(
 			"SELECT model_id, alias, is_primary, alias_only FROM model_aliases ORDER BY model_id, is_primary DESC, alias",
 		)
 		.all<AliasRow>();
-	const map = new Map<string, Array<{ alias: string; is_primary: boolean; alias_only: boolean }>>();
+	const map = new Map<
+		string,
+		Array<{ alias: string; is_primary: boolean; alias_only: boolean }>
+	>();
 	for (const row of result.results ?? []) {
 		const existing = map.get(row.model_id) ?? [];
-		existing.push({ alias: row.alias, is_primary: row.is_primary === 1, alias_only: row.alias_only === 1 });
+		existing.push({
+			alias: row.alias,
+			is_primary: row.is_primary === 1,
+			alias_only: row.alias_only === 1,
+		});
 		map.set(row.model_id, existing);
 	}
 	return map;

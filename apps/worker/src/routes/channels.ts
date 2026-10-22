@@ -105,7 +105,12 @@ channels.get("/", async (c) => {
 				`SELECT model_id, alias, is_primary, alias_only FROM model_aliases WHERE model_id IN (${placeholders}) ORDER BY model_id, is_primary DESC, alias`,
 			)
 				.bind(...batch)
-				.all<{ model_id: string; alias: string; is_primary: number; alias_only: number }>();
+				.all<{
+					model_id: string;
+					alias: string;
+					is_primary: number;
+					alias_only: number;
+				}>();
 
 			for (const row of aliasRows.results ?? []) {
 				if (!modelAliases[row.model_id]) {
@@ -171,15 +176,20 @@ channels.post("/", async (c) => {
 
 	// Save model aliases if provided
 	if (body.model_aliases && typeof body.model_aliases === "object") {
-		const modelIds = (body.models ?? []).map((m: unknown) =>
-			typeof m === "string" ? m : (m as { id?: string })?.id ?? "",
-		).filter(Boolean);
+		const modelIds = (body.models ?? [])
+			.map((m: unknown) =>
+				typeof m === "string" ? m : ((m as { id?: string })?.id ?? ""),
+			)
+			.filter(Boolean);
 		for (const [modelId, config] of Object.entries(body.model_aliases)) {
 			if (!modelIds.includes(modelId)) continue;
 			await saveAliasesForModel(
 				c.env.DB,
 				modelId,
-				config.aliases?.map((a) => ({ alias: a.alias, is_primary: a.is_primary })) ?? [],
+				config.aliases?.map((a) => ({
+					alias: a.alias,
+					is_primary: a.is_primary,
+				})) ?? [],
 				config.alias_only ?? false,
 			);
 		}
@@ -214,7 +224,9 @@ channels.patch("/:id", async (c) => {
 	const baseUrl =
 		apiFormat === "anthropic"
 			? normalizeBaseUrl(String(body.base_url ?? current.base_url))
-			: String(body.base_url ?? current.base_url).trim().replace(/\/+$/, "");
+			: String(body.base_url ?? current.base_url)
+					.trim()
+					.replace(/\/+$/, "");
 
 	await updateChannel(c.env.DB, id, {
 		name: body.name ?? current.name,
@@ -235,15 +247,20 @@ channels.patch("/:id", async (c) => {
 
 	// Save model aliases if provided
 	if (body.model_aliases && typeof body.model_aliases === "object") {
-		const modelIds = (Array.isArray(models) ? models : []).map((m: unknown) =>
-			typeof m === "string" ? m : (m as { id?: string })?.id ?? "",
-		).filter(Boolean);
+		const modelIds = (Array.isArray(models) ? models : [])
+			.map((m: unknown) =>
+				typeof m === "string" ? m : ((m as { id?: string })?.id ?? ""),
+			)
+			.filter(Boolean);
 		for (const [modelId, config] of Object.entries(body.model_aliases)) {
 			if (!modelIds.includes(modelId)) continue;
 			await saveAliasesForModel(
 				c.env.DB,
 				modelId,
-				config.aliases?.map((a) => ({ alias: a.alias, is_primary: a.is_primary })) ?? [],
+				config.aliases?.map((a) => ({
+					alias: a.alias,
+					is_primary: a.is_primary,
+				})) ?? [],
 				config.alias_only ?? false,
 			);
 		}
@@ -290,7 +307,8 @@ channels.post("/:id/test", async (c) => {
 
 	// Check if channel already has models filled in
 	const existingModels = safeJsonParse<unknown[]>(channel.models_json, []);
-	const channelHasModels = Array.isArray(existingModels) && existingModels.length > 0;
+	const channelHasModels =
+		Array.isArray(existingModels) && existingModels.length > 0;
 
 	// Only overwrite models_json when the test returned models AND channel has no existing models
 	const hasModels = result.models.length > 0;

@@ -142,13 +142,13 @@ models.get("/", async (c) => {
 	for (const [modelId, channelInfos] of modelMap) {
 		const usage = usageMap.get(modelId);
 		// Enrich channels with per-channel latency
-		const enrichedChannels = channelInfos.map((ch) => ({
-			...ch,
-			avg_latency_ms:
-				channelLatencyMap.get(`${modelId}:${ch.id}`) != null
-					? Math.round(channelLatencyMap.get(`${modelId}:${ch.id}`)!)
-					: null,
-		}));
+		const enrichedChannels = channelInfos.map((ch) => {
+			const latency = channelLatencyMap.get(`${modelId}:${ch.id}`);
+			return {
+				...ch,
+				avg_latency_ms: latency == null ? null : Math.round(latency),
+			};
+		});
 
 		const aliases = aliasMap.get(modelId) ?? [];
 		const primary = aliases.find((a) => a.is_primary);
@@ -158,7 +158,10 @@ models.get("/", async (c) => {
 		results.push({
 			id: modelId,
 			display_name: displayName,
-			aliases: aliases.map((a) => ({ alias: a.alias, is_primary: a.is_primary })),
+			aliases: aliases.map((a) => ({
+				alias: a.alias,
+				is_primary: a.is_primary,
+			})),
 			alias_only: aliasOnly,
 			channels: enrichedChannels,
 			total_requests: usage?.total_requests ?? 0,
@@ -190,7 +193,12 @@ models.put("/prices/:modelId", async (c) => {
 
 	for (const item of body.prices) {
 		if (!item.channel_id || typeof item.channel_id !== "string") {
-			return jsonError(c, 400, "each price entry must have a channel_id", "invalid_body");
+			return jsonError(
+				c,
+				400,
+				"each price entry must have a channel_id",
+				"invalid_body",
+			);
 		}
 
 		const row = await db
@@ -199,7 +207,12 @@ models.put("/prices/:modelId", async (c) => {
 			.first<{ models_json: string | null }>();
 
 		if (!row) {
-			return jsonError(c, 404, `channel ${item.channel_id} not found`, "not_found");
+			return jsonError(
+				c,
+				404,
+				`channel ${item.channel_id} not found`,
+				"not_found",
+			);
 		}
 
 		const pricings = extractModelPricings({ models_json: row.models_json });
@@ -213,13 +226,19 @@ models.put("/prices/:modelId", async (c) => {
 			);
 		}
 
-		entry.input_price = item.input_price != null ? Number(item.input_price) : entry.input_price;
-		entry.output_price = item.output_price != null ? Number(item.output_price) : entry.output_price;
+		entry.input_price =
+			item.input_price != null ? Number(item.input_price) : entry.input_price;
+		entry.output_price =
+			item.output_price != null
+				? Number(item.output_price)
+				: entry.output_price;
 
 		const updatedJson = modelsToJson(pricings);
 		stmts.push(
 			db
-				.prepare("UPDATE channels SET models_json = ?, updated_at = ? WHERE id = ?")
+				.prepare(
+					"UPDATE channels SET models_json = ?, updated_at = ? WHERE id = ?",
+				)
 				.bind(updatedJson, now, item.channel_id),
 		);
 	}

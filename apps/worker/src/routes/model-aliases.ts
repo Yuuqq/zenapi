@@ -15,12 +15,20 @@ const modelAliasRoutes = new Hono<AppEnv>();
  */
 modelAliasRoutes.get("/", async (c) => {
 	const aliasMap = await listAllAliases(c.env.DB);
-	const result: Record<string, { aliases: Array<{ alias: string; is_primary: boolean }>; alias_only: boolean }> =
-		{};
+	const result: Record<
+		string,
+		{
+			aliases: Array<{ alias: string; is_primary: boolean }>;
+			alias_only: boolean;
+		}
+	> = {};
 	for (const [modelId, aliases] of aliasMap) {
 		const aliasOnly = aliases.length > 0 && aliases[0].alias_only;
 		result[modelId] = {
-			aliases: aliases.map((a) => ({ alias: a.alias, is_primary: a.is_primary })),
+			aliases: aliases.map((a) => ({
+				alias: a.alias,
+				is_primary: a.is_primary,
+			})),
 			alias_only: aliasOnly,
 		};
 	}
@@ -68,8 +76,7 @@ modelAliasRoutes.put("/:modelId", async (c) => {
 	try {
 		await saveAliasesForModel(c.env.DB, modelId, aliases, aliasOnly);
 	} catch (error) {
-		const message =
-			error instanceof Error ? error.message : "unknown error";
+		const message = error instanceof Error ? error.message : "unknown error";
 		if (message.includes("UNIQUE")) {
 			return jsonError(
 				c,

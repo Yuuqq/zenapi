@@ -21,10 +21,26 @@ const siteModeOptions: { value: SiteMode; label: string; desc: string }[] = [
 	},
 ];
 
-const registrationModeOptions: { value: RegistrationMode; label: string; desc: string }[] = [
-	{ value: "open", label: "开放注册", desc: "允许通过邮箱密码和 Linux DO 注册" },
-	{ value: "linuxdo_only", label: "仅 Linux DO", desc: "仅允许通过 Linux DO 登录注册" },
-	{ value: "closed", label: "关闭注册", desc: "不接受新用户注册，已有用户可正常登录" },
+const registrationModeOptions: {
+	value: RegistrationMode;
+	label: string;
+	desc: string;
+}[] = [
+	{
+		value: "open",
+		label: "开放注册",
+		desc: "允许通过邮箱密码和 Linux DO 注册",
+	},
+	{
+		value: "linuxdo_only",
+		label: "仅 Linux DO",
+		desc: "仅允许通过 Linux DO 登录注册",
+	},
+	{
+		value: "closed",
+		label: "关闭注册",
+		desc: "不接受新用户注册，已有用户可正常登录",
+	},
 ];
 
 export const SettingsView = ({
@@ -140,32 +156,33 @@ export const SettingsView = ({
 				</select>
 			</div>
 			{settingsForm.site_mode !== "personal" && (
-			<div class="lg:col-span-2">
-				<label
-					class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500"
-					for="registration-mode"
-				>
-					注册模式
-				</label>
-				<select
-					class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
-					id="registration-mode"
-					name="registration_mode"
-					value={settingsForm.registration_mode}
-					onChange={(event) => {
-						const target = event.currentTarget as HTMLSelectElement | null;
-						onFormChange({
-							registration_mode: (target?.value ?? "open") as RegistrationMode,
-						});
-					}}
-				>
-					{registrationModeOptions.map((opt) => (
-						<option key={opt.value} value={opt.value}>
-							{opt.label} — {opt.desc}
-						</option>
-					))}
-				</select>
-			</div>
+				<div class="lg:col-span-2">
+					<label
+						class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500"
+						for="registration-mode"
+					>
+						注册模式
+					</label>
+					<select
+						class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+						id="registration-mode"
+						name="registration_mode"
+						value={settingsForm.registration_mode}
+						onChange={(event) => {
+							const target = event.currentTarget as HTMLSelectElement | null;
+							onFormChange({
+								registration_mode: (target?.value ??
+									"open") as RegistrationMode,
+							});
+						}}
+					>
+						{registrationModeOptions.map((opt) => (
+							<option key={opt.value} value={opt.value}>
+								{opt.label} — {opt.desc}
+							</option>
+						))}
+					</select>
+				</div>
 			)}
 			<div class="flex items-end lg:col-span-2">
 				<button
