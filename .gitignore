@@ -5,7 +5,6 @@ dist/
 .env.*
 apps/ui/dist/
 apps/worker/.wrangler/
-tests/
 
 helloagents/plan
 helloagents/archive
