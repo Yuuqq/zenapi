@@ -592,10 +592,7 @@ function convertOpenaiChunkToAnthropicEvents(
 		events.push(
 			`event: message_delta\ndata: ${JSON.stringify(messageDelta)}\n\n`,
 		);
-	} else if (
-		usage &&
-		(!choices || choices.length === 0)
-	) {
+	} else if (usage && (!choices || choices.length === 0)) {
 		// OpenAI often sends a final usage-only chunk with empty choices.
 		// Emit message_delta with full usage so clients/billing don't see 0 tokens.
 		const messageDelta = {

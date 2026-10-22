@@ -2,7 +2,10 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import type { UserRecord } from "../middleware/userAuth";
 import { userAuth } from "../middleware/userAuth";
-import { extractModelPricings, extractSharedModelPricings } from "../services/channel-models";
+import {
+	extractModelPricings,
+	extractSharedModelPricings,
+} from "../services/channel-models";
 import { listActiveChannels } from "../services/channel-repo";
 import { loadPrimaryNameMap } from "../services/model-aliases";
 import { getSiteMode } from "../services/settings";
@@ -41,7 +44,12 @@ userApi.patch("/profile", async (c) => {
 	if (body.tip_url !== undefined) {
 		const tipUrl = String(body.tip_url).trim() || null;
 		if (tipUrl && !isHttpUrl(tipUrl)) {
-			return jsonError(c, 400, "invalid_tip_url", "tip_url must be an http(s) URL");
+			return jsonError(
+				c,
+				400,
+				"invalid_tip_url",
+				"tip_url must be an http(s) URL",
+			);
 		}
 		await c.env.DB.prepare(
 			"UPDATE users SET tip_url = ?, updated_at = ? WHERE id = ?",
@@ -71,9 +79,10 @@ userApi.get("/models", async (c) => {
 	>();
 
 	for (const channel of channels) {
-		const pricings = siteMode === "shared"
-			? extractSharedModelPricings(channel)
-			: extractModelPricings(channel);
+		const pricings =
+			siteMode === "shared"
+				? extractSharedModelPricings(channel)
+				: extractModelPricings(channel);
 		for (const p of pricings) {
 			const existing = modelMap.get(p.id) ?? [];
 			if (siteMode === "shared") {
@@ -138,7 +147,20 @@ userApi.post("/tokens", async (c) => {
 	await c.env.DB.prepare(
 		"INSERT INTO tokens (id, name, key_hash, key_prefix, token_plain, quota_total, quota_used, status, allowed_channels, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	)
-		.bind(id, body.name, tokenHash, keyPrefix, rawToken, null, 0, "active", null, userId, now, now)
+		.bind(
+			id,
+			body.name,
+			tokenHash,
+			keyPrefix,
+			rawToken,
+			null,
+			0,
+			"active",
+			null,
+			userId,
+			now,
+			now,
+		)
 		.run();
 
 	return c.json({ id, token: rawToken });
@@ -227,7 +249,11 @@ userApi.get("/dashboard", async (c) => {
 		WHERE t.user_id = ?`,
 	)
 		.bind(userId)
-		.first<{ total_requests: number; total_tokens: number; total_cost: number }>();
+		.first<{
+			total_requests: number;
+			total_tokens: number;
+			total_cost: number;
+		}>();
 
 	const recentUsage = await c.env.DB.prepare(
 		`SELECT
@@ -273,9 +299,14 @@ userApi.get("/dashboard", async (c) => {
 			ORDER BY total_requests DESC`,
 		).all();
 
-		const contributorIds = (contribRows.results ?? []).map((r) => String(r.user_id));
+		const contributorIds = (contribRows.results ?? []).map((r) =>
+			String(r.user_id),
+		);
 
-		let channelDetailMap = new Map<string, Array<{ name: string; requests: number; total_tokens: number }>>();
+		const channelDetailMap = new Map<
+			string,
+			Array<{ name: string; requests: number; total_tokens: number }>
+		>();
 		if (contributorIds.length > 0) {
 			const channelRows = await c.env.DB.prepare(
 				`SELECT

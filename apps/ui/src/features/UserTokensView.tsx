@@ -86,9 +86,7 @@ export const UserTokensView = ({
 													: "bg-stone-100 text-stone-500"
 											}`}
 										>
-											{token.status === "active"
-												? "启用"
-												: "停用"}
+											{token.status === "active" ? "启用" : "停用"}
 										</span>
 									</td>
 									<td class="py-2.5 pr-4 text-xs text-stone-500">
@@ -147,8 +145,7 @@ export const UserTokensView = ({
 									value={tokenName}
 									onInput={(e) =>
 										setTokenName(
-											(e.currentTarget as HTMLInputElement)
-												?.value ?? "",
+											(e.currentTarget as HTMLInputElement)?.value ?? "",
 										)
 									}
 								/>

@@ -141,24 +141,16 @@ export const UserModelsView = ({ models, siteMode }: UserModelsViewProps) => {
 																ch.output_price != null ? (
 																	<>
 																		<span class="text-emerald-600">
-																			{formatPrice(
-																				ch.input_price,
-																			)}
+																			{formatPrice(ch.input_price)}
 																		</span>
 																		{" / "}
 																		<span class="text-blue-600">
-																			{formatPrice(
-																				ch.output_price,
-																			)}
+																			{formatPrice(ch.output_price)}
 																		</span>
-																		<span class="ml-1 text-stone-400">
-																			/1M
-																		</span>
+																		<span class="ml-1 text-stone-400">/1M</span>
 																	</>
 																) : (
-																	<span class="text-stone-300">
-																		未设置
-																	</span>
+																	<span class="text-stone-300">未设置</span>
 																)}
 															</span>
 														</div>

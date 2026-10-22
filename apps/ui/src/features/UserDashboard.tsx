@@ -24,7 +24,11 @@ function formatNumber(n: number): string {
 	return String(n);
 }
 
-const ContributionBoard = ({ contributions }: { contributions: ContributionEntry[] }) => {
+const ContributionBoard = ({
+	contributions,
+}: {
+	contributions: ContributionEntry[];
+}) => {
 	const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
 	return (
@@ -55,9 +59,13 @@ const ContributionBoard = ({ contributions }: { contributions: ContributionEntry
 									>
 										<td class="py-2.5 pr-4 text-stone-400">{idx + 1}</td>
 										<td class="py-2.5 pr-4">
-											<span class="font-medium text-stone-700">{entry.user_name}</span>
+											<span class="font-medium text-stone-700">
+												{entry.user_name}
+											</span>
 											{entry.linuxdo_id && (
-												<span class="ml-1.5 text-xs text-stone-400">L{entry.linuxdo_id}</span>
+												<span class="ml-1.5 text-xs text-stone-400">
+													L{entry.linuxdo_id}
+												</span>
 											)}
 											{entry.tip_url && (
 												<a
@@ -71,7 +79,9 @@ const ContributionBoard = ({ contributions }: { contributions: ContributionEntry
 												</a>
 											)}
 										</td>
-										<td class="py-2.5 pr-4 text-right text-stone-600">{entry.channel_count}</td>
+										<td class="py-2.5 pr-4 text-right text-stone-600">
+											{entry.channel_count}
+										</td>
 										<td class="py-2.5 pr-4 text-right font-['Space_Grotesk'] text-stone-600">
 											{formatNumber(entry.total_requests)}
 										</td>
@@ -86,17 +96,24 @@ const ContributionBoard = ({ contributions }: { contributions: ContributionEntry
 													<table class="w-full text-xs">
 														<thead>
 															<tr class="text-stone-400">
-																<th class="pb-1 text-left font-medium">渠道名称</th>
-																<th class="pb-1 text-right font-medium">请求</th>
-																<th class="pb-1 text-right font-medium">Token</th>
+																<th class="pb-1 text-left font-medium">
+																	渠道名称
+																</th>
+																<th class="pb-1 text-right font-medium">
+																	请求
+																</th>
+																<th class="pb-1 text-right font-medium">
+																	Token
+																</th>
 															</tr>
 														</thead>
 														<tbody>
 															{entry.channels.map((ch) => (
-																<tr key={ch.name} class="border-t border-stone-100">
-																	<td class="py-1 text-stone-600">
-																		{ch.name}
-																	</td>
+																<tr
+																	key={ch.name}
+																	class="border-t border-stone-100"
+																>
+																	<td class="py-1 text-stone-600">{ch.name}</td>
 																	<td class="py-1 text-right font-['Space_Grotesk'] text-stone-500">
 																		{formatNumber(ch.requests)}
 																	</td>
@@ -121,7 +138,15 @@ const ContributionBoard = ({ contributions }: { contributions: ContributionEntry
 	);
 };
 
-export const UserDashboard = ({ data, user, token, updateToken, linuxdoEnabled, onUnbind, onUserRefresh }: UserDashboardProps) => {
+export const UserDashboard = ({
+	data,
+	user,
+	token,
+	updateToken,
+	linuxdoEnabled,
+	onUnbind,
+	onUserRefresh,
+}: UserDashboardProps) => {
 	const [tipUrl, setTipUrl] = useState(user.tip_url ?? "");
 	const [profileNotice, setProfileNotice] = useState("");
 
@@ -200,18 +225,20 @@ export const UserDashboard = ({ data, user, token, updateToken, linuxdoEnabled, 
 					</div>
 				)}
 				<div class="flex items-end gap-3">
-					<div class="flex-1">
-						<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+					<label class="block flex-1">
+						<span class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
 							打赏链接（选填，显示在贡献榜）
-						</label>
+						</span>
 						<input
 							class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 							type="url"
 							placeholder="https://example.com/tip"
 							value={tipUrl}
-							onInput={(e) => setTipUrl((e.currentTarget as HTMLInputElement)?.value ?? "")}
+							onInput={(e) =>
+								setTipUrl((e.currentTarget as HTMLInputElement)?.value ?? "")
+							}
 						/>
-					</div>
+					</label>
 					<button
 						type="button"
 						class="h-[42px] rounded-lg bg-stone-900 px-4 text-sm font-semibold text-white transition-all hover:shadow-lg"
@@ -224,39 +251,37 @@ export const UserDashboard = ({ data, user, token, updateToken, linuxdoEnabled, 
 
 			{/* Account binding */}
 			{linuxdoEnabled && (
-			<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-lg">
-				<h3 class="mb-4 font-['Space_Grotesk'] text-lg tracking-tight text-stone-900">
-					账号绑定
-				</h3>
-				<div class="flex items-center justify-between">
-					<div>
-						<p class="text-sm font-medium text-stone-700">Linux DO</p>
-						<p class="text-xs text-stone-500">
-							{user.linuxdo_id
-								? `已绑定 (ID: ${user.linuxdo_id})`
-								: "未绑定"}
-						</p>
-					</div>
-					<div>
-						{user.linuxdo_id ? (
-							<button
-								type="button"
-								class="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-600 transition-all hover:border-red-200 hover:text-red-600"
-								onClick={onUnbind}
-							>
-								解除绑定
-							</button>
-						) : (
-							<a
-								href={`/api/u/auth/linuxdo/bind?token=${encodeURIComponent(token)}`}
-								class="inline-flex rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-all hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md"
-							>
-								绑定 Linux DO
-							</a>
-						)}
+				<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-lg">
+					<h3 class="mb-4 font-['Space_Grotesk'] text-lg tracking-tight text-stone-900">
+						账号绑定
+					</h3>
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-stone-700">Linux DO</p>
+							<p class="text-xs text-stone-500">
+								{user.linuxdo_id ? `已绑定 (ID: ${user.linuxdo_id})` : "未绑定"}
+							</p>
+						</div>
+						<div>
+							{user.linuxdo_id ? (
+								<button
+									type="button"
+									class="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-600 transition-all hover:border-red-200 hover:text-red-600"
+									onClick={onUnbind}
+								>
+									解除绑定
+								</button>
+							) : (
+								<a
+									href={`/api/u/auth/linuxdo/bind?token=${encodeURIComponent(token)}`}
+									class="inline-flex rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-all hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md"
+								>
+									绑定 Linux DO
+								</a>
+							)}
+						</div>
 					</div>
 				</div>
-			</div>
 			)}
 
 			{/* Recent usage */}
@@ -265,9 +290,7 @@ export const UserDashboard = ({ data, user, token, updateToken, linuxdoEnabled, 
 					最近使用
 				</h3>
 				{data.recent_usage.length === 0 ? (
-					<p class="py-8 text-center text-sm text-stone-400">
-						暂无使用记录
-					</p>
+					<p class="py-8 text-center text-sm text-stone-400">暂无使用记录</p>
 				) : (
 					<div class="overflow-x-auto">
 						<table class="w-full text-left text-sm">
@@ -281,15 +304,9 @@ export const UserDashboard = ({ data, user, token, updateToken, linuxdoEnabled, 
 							<tbody>
 								{data.recent_usage.map((item) => (
 									<tr class="border-b border-stone-50">
-										<td class="py-2 pr-4 text-stone-600">
-											{item.day}
-										</td>
-										<td class="py-2 pr-4 text-stone-600">
-											{item.requests}
-										</td>
-										<td class="py-2 text-stone-600">
-											{formatCost(item.cost)}
-										</td>
+										<td class="py-2 pr-4 text-stone-600">{item.day}</td>
+										<td class="py-2 pr-4 text-stone-600">{item.requests}</td>
+										<td class="py-2 text-stone-600">{formatCost(item.cost)}</td>
 									</tr>
 								))}
 							</tbody>

@@ -67,7 +67,12 @@ userChannels.get("/", async (c) => {
 				`SELECT model_id, alias, is_primary, alias_only FROM model_aliases WHERE model_id IN (${placeholders}) ORDER BY model_id, is_primary DESC, alias`,
 			)
 				.bind(...batch)
-				.all<{ model_id: string; alias: string; is_primary: number; alias_only: number }>();
+				.all<{
+					model_id: string;
+					alias: string;
+					is_primary: number;
+					alias_only: number;
+				}>();
 
 			for (const row of aliasRows.results ?? []) {
 				if (!modelAliases[row.model_id]) {
@@ -132,9 +137,9 @@ userChannels.post("/", async (c) => {
 	// Save model aliases if provided
 	if (body.model_aliases && typeof body.model_aliases === "object") {
 		const modelIds = modelsJson
-			? (JSON.parse(modelsJson) as Array<{ id?: string } | string>).map(
-					(m) => (typeof m === "string" ? m : m?.id ?? ""),
-				).filter(Boolean)
+			? (JSON.parse(modelsJson) as Array<{ id?: string } | string>)
+					.map((m) => (typeof m === "string" ? m : (m?.id ?? "")))
+					.filter(Boolean)
 			: [];
 		for (const [modelId, config] of Object.entries(body.model_aliases)) {
 			if (!modelIds.includes(modelId)) continue;
@@ -143,7 +148,10 @@ userChannels.post("/", async (c) => {
 				await saveAliasesForModel(
 					c.env.DB,
 					modelId,
-					cfg.aliases.map((a) => ({ alias: a.alias, is_primary: a.is_primary })),
+					cfg.aliases.map((a) => ({
+						alias: a.alias,
+						is_primary: a.is_primary,
+					})),
 					cfg.alias_only ?? false,
 				);
 			}
@@ -204,9 +212,9 @@ userChannels.patch("/:id", async (c) => {
 	// Save model aliases if provided
 	if (body.model_aliases && typeof body.model_aliases === "object") {
 		const modelIds = modelsJson
-			? (JSON.parse(modelsJson) as Array<{ id?: string } | string>).map(
-					(m) => (typeof m === "string" ? m : m?.id ?? ""),
-				).filter(Boolean)
+			? (JSON.parse(modelsJson) as Array<{ id?: string } | string>)
+					.map((m) => (typeof m === "string" ? m : (m?.id ?? "")))
+					.filter(Boolean)
 			: [];
 		for (const [modelId, config] of Object.entries(body.model_aliases)) {
 			if (!modelIds.includes(modelId)) continue;
@@ -214,7 +222,10 @@ userChannels.patch("/:id", async (c) => {
 			await saveAliasesForModel(
 				c.env.DB,
 				modelId,
-				cfg.aliases?.map((a) => ({ alias: a.alias, is_primary: a.is_primary })) ?? [],
+				cfg.aliases?.map((a) => ({
+					alias: a.alias,
+					is_primary: a.is_primary,
+				})) ?? [],
 				cfg.alias_only ?? false,
 			);
 		}

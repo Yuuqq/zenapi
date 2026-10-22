@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "hono/jsx/dom";
 import { createApiFetch } from "./core/api";
+import type { RegistrationMode } from "./core/types";
 import { UserLoginView } from "./features/UserLoginView";
 import { UserRegisterView } from "./features/UserRegisterView";
-import type { RegistrationMode } from "./core/types";
 
 const normalizePath = (path: string) => {
 	if (path.length <= 1) return "/";
@@ -17,7 +17,13 @@ type PublicAppProps = {
 	registrationMode: RegistrationMode;
 };
 
-export const PublicApp = ({ onUserLogin, onNavigate, siteMode, linuxdoEnabled, registrationMode }: PublicAppProps) => {
+export const PublicApp = ({
+	onUserLogin,
+	onNavigate,
+	siteMode,
+	linuxdoEnabled,
+	registrationMode,
+}: PublicAppProps) => {
 	const [page, setPage] = useState<"login" | "register">(() => {
 		const normalized = normalizePath(window.location.pathname);
 		if (normalized === "/register") return "register";
@@ -25,10 +31,7 @@ export const PublicApp = ({ onUserLogin, onNavigate, siteMode, linuxdoEnabled, r
 	});
 	const [notice, setNotice] = useState("");
 
-	const apiFetch = useCallback(
-		() => createApiFetch(null, () => {}),
-		[],
-	);
+	const apiFetch = useCallback(() => createApiFetch(null, () => {}), []);
 
 	useEffect(() => {
 		const handlePopState = () => {
@@ -92,13 +95,10 @@ export const PublicApp = ({ onUserLogin, onNavigate, siteMode, linuxdoEnabled, r
 		async (email: string, name: string, password: string) => {
 			try {
 				const api = apiFetch();
-				const result = await api<{ token: string }>(
-					"/api/u/auth/register",
-					{
-						method: "POST",
-						body: JSON.stringify({ email, name, password }),
-					},
-				);
+				const result = await api<{ token: string }>("/api/u/auth/register", {
+					method: "POST",
+					body: JSON.stringify({ email, name, password }),
+				});
 				onUserLogin(result.token);
 			} catch (error) {
 				setNotice((error as Error).message);
@@ -164,13 +164,13 @@ export const PublicApp = ({ onUserLogin, onNavigate, siteMode, linuxdoEnabled, r
 					</button>
 					<div class="flex gap-3">
 						{registrationMode !== "closed" && (
-						<button
-							type="button"
-							class="rounded-lg px-4 py-2 text-sm text-stone-500 hover:text-stone-900"
-							onClick={() => navigate("register")}
-						>
-							注册
-						</button>
+							<button
+								type="button"
+								class="rounded-lg px-4 py-2 text-sm text-stone-500 hover:text-stone-900"
+								onClick={() => navigate("register")}
+							>
+								注册
+							</button>
 						)}
 						<button
 							type="button"

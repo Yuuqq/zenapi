@@ -1,9 +1,4 @@
-import {
-	useCallback,
-	useEffect,
-	useMemo,
-	useState,
-} from "hono/jsx/dom";
+import { useCallback, useEffect, useMemo, useState } from "hono/jsx/dom";
 import { createApiFetch } from "./core/api";
 import {
 	initialChannelForm,
@@ -20,24 +15,23 @@ import type {
 	MonitoringData,
 	Settings,
 	SettingsForm,
-	SiteMode,
 	TabId,
 	Token,
-	User,
 	UsageLog,
+	User,
 } from "./core/types";
-import type { ModelAliasesMap } from "./UserApp";
 import { toggleStatus } from "./core/utils";
 import { AppLayout } from "./features/AppLayout";
 import { ChannelsView } from "./features/ChannelsView";
 import { DashboardView } from "./features/DashboardView";
 import { ModelsView } from "./features/ModelsView";
 import { MonitoringView } from "./features/MonitoringView";
+import { PlaygroundView } from "./features/PlaygroundView";
 import { SettingsView } from "./features/SettingsView";
 import { TokensView } from "./features/TokensView";
 import { UsageView } from "./features/UsageView";
 import { UsersView } from "./features/UsersView";
-import { PlaygroundView } from "./features/PlaygroundView";
+import type { ModelAliasesMap } from "./UserApp";
 
 type AdminAppProps = {
 	token: string;
@@ -94,8 +88,11 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 		...initialChannelForm,
 	}));
 	const [isChannelModalOpen, setChannelModalOpen] = useState(false);
-	const [channelModelAliases, setChannelModelAliases] = useState<ModelAliasesMap>({});
-	const [channelAliasState, setChannelAliasState] = useState<ModelAliasesMap>({});
+	const [channelModelAliases, setChannelModelAliases] =
+		useState<ModelAliasesMap>({});
+	const [channelAliasState, setChannelAliasState] = useState<ModelAliasesMap>(
+		{},
+	);
 	const [isTokenModalOpen, setTokenModalOpen] = useState(false);
 	const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [users, setUsers] = useState<User[]>([]);
@@ -118,7 +115,10 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 	}, [apiFetch]);
 
 	const loadChannels = useCallback(async () => {
-		const result = await apiFetch<{ channels: Channel[]; model_aliases?: ModelAliasesMap }>("/api/channels");
+		const result = await apiFetch<{
+			channels: Channel[];
+			model_aliases?: ModelAliasesMap;
+		}>("/api/channels");
 		setData((prev) => ({ ...prev, channels: result.channels }));
 		setChannelModelAliases(result.model_aliases ?? {});
 	}, [apiFetch]);
@@ -134,9 +134,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 	}, [apiFetch]);
 
 	const loadUsage = useCallback(async () => {
-		const result = await apiFetch<{ logs: UsageLog[] }>(
-			"/api/usage?limit=200",
-		);
+		const result = await apiFetch<{ logs: UsageLog[] }>("/api/usage?limit=200");
 		setData((prev) => ({ ...prev, usage: result.logs }));
 	}, [apiFetch]);
 
@@ -157,13 +155,18 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 			try {
 				if (tabId === "dashboard") await loadDashboard();
 				if (tabId === "monitoring") await loadMonitoring();
-				if (tabId === "channels") { await loadChannels(); await loadSettings(); }
+				if (tabId === "channels") {
+					await loadChannels();
+					await loadSettings();
+				}
 				if (tabId === "models") await loadModels();
 				if (tabId === "tokens") await loadTokens();
 				if (tabId === "usage") await loadUsage();
 				if (tabId === "settings") await loadSettings();
 				if (tabId === "users") await loadUsers();
-				if (tabId === "playground") { /* no data to preload */ }
+				if (tabId === "playground") {
+					/* no data to preload */
+				}
 			} catch (error) {
 				setNotice((error as Error).message);
 			} finally {
@@ -211,12 +214,9 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 		updateToken(null);
 	}, [apiFetch, updateToken]);
 
-	const handleChannelFormChange = useCallback(
-		(patch: Partial<ChannelForm>) => {
-			setChannelForm((prev) => ({ ...prev, ...patch }));
-		},
-		[],
-	);
+	const handleChannelFormChange = useCallback((patch: Partial<ChannelForm>) => {
+		setChannelForm((prev) => ({ ...prev, ...patch }));
+	}, []);
 
 	const handleSettingsFormChange = useCallback(
 		(patch: Partial<SettingsForm>) => {
@@ -281,69 +281,75 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 		setNotice("");
 	}, []);
 
-	const startChannelEdit = useCallback((channel: Channel) => {
-		setEditingChannel(channel);
-		let modelsList = "";
-		const modelIds: string[] = [];
-		if (channel.models_json) {
-			try {
-				const parsed = JSON.parse(channel.models_json);
-				const arr = Array.isArray(parsed)
-					? parsed
-					: Array.isArray(parsed?.data)
-						? parsed.data
-						: [];
-				modelsList = arr
-					.map((m: unknown) => {
-						if (typeof m === "string") { modelIds.push(m); return m; }
-						const obj = m as {
-							id?: string;
-							input_price?: number;
-							output_price?: number;
-							shared?: boolean;
-							enabled?: boolean;
-						};
-						const id = obj?.id ?? "";
-						if (!id) return "";
-						modelIds.push(id);
-						const ip = obj?.input_price;
-						const op = obj?.output_price;
-						const sh = obj?.shared;
-						const en = obj?.enabled;
-						if (ip != null || op != null || sh != null || en != null) {
-							return `${id}|${ip ?? ""}|${op ?? ""}|${sh ? "1" : "0"}|${en === false ? "0" : "1"}`;
-						}
-						return id;
-					})
-					.filter(Boolean)
-					.join("\n");
-			} catch {
-				/* ignore */
+	const startChannelEdit = useCallback(
+		(channel: Channel) => {
+			setEditingChannel(channel);
+			let modelsList = "";
+			const modelIds: string[] = [];
+			if (channel.models_json) {
+				try {
+					const parsed = JSON.parse(channel.models_json);
+					const arr = Array.isArray(parsed)
+						? parsed
+						: Array.isArray(parsed?.data)
+							? parsed.data
+							: [];
+					modelsList = arr
+						.map((m: unknown) => {
+							if (typeof m === "string") {
+								modelIds.push(m);
+								return m;
+							}
+							const obj = m as {
+								id?: string;
+								input_price?: number;
+								output_price?: number;
+								shared?: boolean;
+								enabled?: boolean;
+							};
+							const id = obj?.id ?? "";
+							if (!id) return "";
+							modelIds.push(id);
+							const ip = obj?.input_price;
+							const op = obj?.output_price;
+							const sh = obj?.shared;
+							const en = obj?.enabled;
+							if (ip != null || op != null || sh != null || en != null) {
+								return `${id}|${ip ?? ""}|${op ?? ""}|${sh ? "1" : "0"}|${en === false ? "0" : "1"}`;
+							}
+							return id;
+						})
+						.filter(Boolean)
+						.join("\n");
+				} catch {
+					/* ignore */
+				}
 			}
-		}
-		setChannelForm({
-			name: channel.name ?? "",
-			base_url: channel.base_url ?? "",
-			api_key: channel.api_key ?? "",
-			weight: channel.weight ?? 1,
-			api_format: channel.api_format ?? "openai",
-			custom_headers: channel.custom_headers_json ?? "",
-			models: modelsList,
-		});
-		// Initialize alias state from global alias map for this channel's models
-		const initial: ModelAliasesMap = {};
-		for (const mid of modelIds) {
-			if (channelModelAliases[mid]) {
-				initial[mid] = {
-					aliases: channelModelAliases[mid].aliases.map((a) => ({ ...a })),
-					alias_only: channelModelAliases[mid].alias_only,
-				};
+			setChannelForm({
+				name: channel.name ?? "",
+				base_url: channel.base_url ?? "",
+				api_key: channel.api_key ?? "",
+				weight: channel.weight ?? 1,
+				api_format: channel.api_format ?? "openai",
+				custom_headers: channel.custom_headers_json ?? "",
+				models: modelsList,
+			});
+			// Initialize alias state from global alias map for this channel's models
+			const initial: ModelAliasesMap = {};
+			for (const mid of modelIds) {
+				if (channelModelAliases[mid]) {
+					initial[mid] = {
+						aliases: channelModelAliases[mid].aliases.map((a) => ({ ...a })),
+						alias_only: channelModelAliases[mid].alias_only,
+					};
+				}
 			}
-		}
-		setChannelAliasState(initial);
-		setChannelModalOpen(true);
-		setNotice("");
-	}, [channelModelAliases]);
+			setChannelAliasState(initial);
+			setChannelModalOpen(true);
+			setNotice("");
+		},
+		[channelModelAliases],
+	);
 
 	const closeTokenModal = useCallback(() => setTokenModalOpen(false), []);
 
@@ -392,7 +398,13 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 					});
 				// Build model_aliases payload from alias state
 				const modelIds = modelsArray.map((m) => m.id);
-				const aliasPayload: Record<string, { aliases: Array<{ alias: string; is_primary: boolean }>; alias_only: boolean }> = {};
+				const aliasPayload: Record<
+					string,
+					{
+						aliases: Array<{ alias: string; is_primary: boolean }>;
+						alias_only: boolean;
+					}
+				> = {};
 				for (const mid of modelIds) {
 					if (channelAliasState[mid]) {
 						aliasPayload[mid] = channelAliasState[mid];
@@ -406,7 +418,8 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 					api_format: channelForm.api_format,
 					custom_headers: channelForm.custom_headers.trim() || undefined,
 					models: modelsArray.length > 0 ? modelsArray : undefined,
-					model_aliases: Object.keys(aliasPayload).length > 0 ? aliasPayload : undefined,
+					model_aliases:
+						Object.keys(aliasPayload).length > 0 ? aliasPayload : undefined,
 				};
 				if (editingChannel) {
 					await apiFetch(`/api/channels/${editingChannel.id}`, {
@@ -635,7 +648,11 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 	const handlePriceSave = useCallback(
 		async (
 			modelId: string,
-			prices: Array<{ channel_id: string; input_price: number; output_price: number }>,
+			prices: Array<{
+				channel_id: string;
+				input_price: number;
+				output_price: number;
+			}>,
 		) => {
 			try {
 				await apiFetch(`/api/models/prices/${encodeURIComponent(modelId)}`, {
@@ -651,12 +668,9 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 		[apiFetch, loadModels],
 	);
 
-	const handleMonitoringLoaded = useCallback(
-		(monitoring: MonitoringData) => {
-			setData((prev) => ({ ...prev, monitoring }));
-		},
-		[],
-	);
+	const handleMonitoringLoaded = useCallback((monitoring: MonitoringData) => {
+		setData((prev) => ({ ...prev, monitoring }));
+	}, []);
 
 	const handleUserCreate = useCallback(
 		async (userData: {
@@ -800,7 +814,13 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 			);
 		}
 		if (activeTab === "models") {
-			return <ModelsView models={data.models} onAliasSave={handleAliasSave} onPriceSave={handlePriceSave} />;
+			return (
+				<ModelsView
+					models={data.models}
+					onAliasSave={handleAliasSave}
+					onPriceSave={handlePriceSave}
+				/>
+			);
 		}
 		if (activeTab === "tokens") {
 			return (
@@ -823,9 +843,7 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 			);
 		}
 		if (activeTab === "usage") {
-			return (
-				<UsageView usage={data.usage} onRefresh={handleUsageRefresh} />
-			);
+			return <UsageView usage={data.usage} onRefresh={handleUsageRefresh} />;
 		}
 		if (activeTab === "settings") {
 			return (

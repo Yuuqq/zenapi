@@ -1,20 +1,26 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "hono/jsx/dom";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "hono/jsx/dom";
 import { createApiFetch } from "./core/api";
 import { userTabs } from "./core/constants";
 import type {
 	PublicModelItem,
 	SiteMode,
 	Token,
+	UsageLog,
 	User,
 	UserDashboardData,
 	UserTabId,
-	UsageLog,
 } from "./core/types";
+import { UserChannelsView } from "./features/UserChannelsView";
 import { UserDashboard } from "./features/UserDashboard";
 import { UserModelsView } from "./features/UserModelsView";
 import { UserTokensView } from "./features/UserTokensView";
 import { UserUsageView } from "./features/UserUsageView";
-import { UserChannelsView } from "./features/UserChannelsView";
 
 type ChannelItem = {
 	id: string;
@@ -65,15 +71,24 @@ const userPathToTab: Record<string, UserTabId> = {
 	"/user/channels": "channels",
 };
 
-export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, onUserRefresh, siteMode }: UserAppProps) => {
+export const UserApp = ({
+	token,
+	user,
+	updateToken,
+	onNavigate,
+	linuxdoEnabled,
+	onUserRefresh,
+	siteMode,
+}: UserAppProps) => {
 	const [activeTab, setActiveTab] = useState<UserTabId>(() => {
 		const normalized = normalizePath(window.location.pathname);
 		return userPathToTab[normalized] ?? "dashboard";
 	});
 	const [loading, setLoading] = useState(false);
 	const [notice, setNotice] = useState("");
-	const [dashboardData, setDashboardData] =
-		useState<UserDashboardData | null>(null);
+	const [dashboardData, setDashboardData] = useState<UserDashboardData | null>(
+		null,
+	);
 	const [models, setModels] = useState<PublicModelItem[]>([]);
 	const [channels, setChannels] = useState<ChannelItem[]>([]);
 	const [modelAliases, setModelAliases] = useState<ModelAliasesMap>({});
@@ -135,7 +150,10 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 	}, [apiFetch]);
 
 	const loadChannels = useCallback(async () => {
-		const result = await apiFetch<{ channels: ChannelItem[]; model_aliases?: ModelAliasesMap }>("/api/u/channels");
+		const result = await apiFetch<{
+			channels: ChannelItem[];
+			model_aliases?: ModelAliasesMap;
+		}>("/api/u/channels");
 		setChannels(result.channels);
 		setModelAliases(result.model_aliases ?? {});
 	}, [apiFetch]);
@@ -144,7 +162,7 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 
 	const loadTab = useCallback(
 		async (tabId: UserTabId) => {
-			if (!loadedTabs.current!.has(tabId)) setLoading(true);
+			if (!loadedTabs.current?.has(tabId)) setLoading(true);
 			setNotice("");
 			try {
 				if (tabId === "dashboard") await loadDashboard();
@@ -152,7 +170,7 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 				if (tabId === "tokens") await loadTokens();
 				if (tabId === "usage") await loadUsage();
 				if (tabId === "channels") await loadChannels();
-				loadedTabs.current!.add(tabId);
+				loadedTabs.current?.add(tabId);
 			} catch (error) {
 				setNotice((error as Error).message);
 			} finally {
@@ -186,9 +204,7 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 	}, []);
 
 	const handleLogout = useCallback(async () => {
-		await apiFetch("/api/u/auth/logout", { method: "POST" }).catch(
-			() => null,
-		);
+		await apiFetch("/api/u/auth/logout", { method: "POST" }).catch(() => null);
 		updateToken(null);
 	}, [apiFetch, updateToken]);
 
@@ -280,7 +296,17 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 			);
 		}
 		if (activeTab === "dashboard") {
-			return <UserDashboard data={dashboardData} user={user} token={token} updateToken={updateToken} linuxdoEnabled={linuxdoEnabled} onUnbind={handleLinuxdoUnbind} onUserRefresh={onUserRefresh} />;
+			return (
+				<UserDashboard
+					data={dashboardData}
+					user={user}
+					token={token}
+					updateToken={updateToken}
+					linuxdoEnabled={linuxdoEnabled}
+					onUnbind={handleLinuxdoUnbind}
+					onUserRefresh={onUserRefresh}
+				/>
+			);
 		}
 		if (activeTab === "models") {
 			return <UserModelsView models={models} siteMode={siteMode} />;
@@ -300,7 +326,13 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 		}
 		if (activeTab === "channels") {
 			return (
-				<UserChannelsView token={token} updateToken={updateToken} channels={channels} modelAliases={modelAliases} onRefresh={loadChannels} />
+				<UserChannelsView
+					token={token}
+					updateToken={updateToken}
+					channels={channels}
+					modelAliases={modelAliases}
+					onRefresh={loadChannels}
+				/>
 			);
 		}
 		return null;
@@ -313,9 +345,12 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 				<button
 					class="flex h-10 w-10 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-600 transition-all hover:bg-stone-50 hover:text-stone-900"
 					type="button"
+					aria-label={isMobileMenuOpen ? "关闭菜单" : "打开菜单"}
+					aria-expanded={isMobileMenuOpen}
 					onClick={toggleMobileMenu}
 				>
 					<svg
+						aria-hidden="true"
 						xmlns="http://www.w3.org/2000/svg"
 						fill="none"
 						viewBox="0 0 24 24"
@@ -338,7 +373,11 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 						)}
 					</svg>
 				</button>
-				<button type="button" class="font-['Space_Grotesk'] text-sm font-semibold tracking-tight text-stone-900" onClick={() => onNavigate("/")}>
+				<button
+					type="button"
+					class="font-['Space_Grotesk'] text-sm font-semibold tracking-tight text-stone-900"
+					onClick={() => onNavigate("/")}
+				>
 					ZenAPI
 				</button>
 				<div class="w-10" />
@@ -353,13 +392,16 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 						tabIndex={-1}
 						onClick={toggleMobileMenu}
 						onKeyDown={(e) => {
-							if ((e as KeyboardEvent).key === "Escape")
-								toggleMobileMenu();
+							if ((e as KeyboardEvent).key === "Escape") toggleMobileMenu();
 						}}
 					/>
 					<aside class="absolute left-0 top-0 h-full w-[280px] border-r border-stone-200 bg-white px-5 py-8 shadow-xl">
 						<div class="mb-8 flex flex-col gap-1.5">
-							<button type="button" class="font-['Space_Grotesk'] text-lg font-semibold tracking-tight text-stone-900 text-left" onClick={() => onNavigate("/")}>
+							<button
+								type="button"
+								class="font-['Space_Grotesk'] text-lg font-semibold tracking-tight text-stone-900 text-left"
+								onClick={() => onNavigate("/")}
+							>
 								ZenAPI
 							</button>
 							<span class="text-xs text-stone-500">
@@ -400,7 +442,11 @@ export const UserApp = ({ token, user, updateToken, onNavigate, linuxdoEnabled, 
 			{/* Desktop sidebar */}
 			<aside class="hidden border-b border-stone-200 bg-white px-5 py-8 lg:sticky lg:top-0 lg:block lg:h-screen lg:border-b-0 lg:border-r">
 				<div class="mb-8 flex flex-col gap-1.5">
-					<button type="button" class="font-['Space_Grotesk'] text-lg font-semibold tracking-tight text-stone-900 text-left" onClick={() => onNavigate("/")}>
+					<button
+						type="button"
+						class="font-['Space_Grotesk'] text-lg font-semibold tracking-tight text-stone-900 text-left"
+						onClick={() => onNavigate("/")}
+					>
 						ZenAPI
 					</button>
 					<span class="text-xs text-stone-500">

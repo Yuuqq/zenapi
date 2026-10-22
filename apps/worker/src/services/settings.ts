@@ -116,7 +116,11 @@ const VALID_SITE_MODES: SiteMode[] = ["personal", "service", "shared"];
 
 const REGISTRATION_MODE_KEY = "registration_mode";
 export type RegistrationMode = "open" | "linuxdo_only" | "closed";
-const VALID_REGISTRATION_MODES: RegistrationMode[] = ["open", "linuxdo_only", "closed"];
+const VALID_REGISTRATION_MODES: RegistrationMode[] = [
+	"open",
+	"linuxdo_only",
+	"closed",
+];
 
 /**
  * Returns the site mode setting.
@@ -145,7 +149,9 @@ export async function setSiteMode(
 /**
  * Returns the registration mode setting.
  */
-export async function getRegistrationMode(db: D1Database): Promise<RegistrationMode> {
+export async function getRegistrationMode(
+	db: D1Database,
+): Promise<RegistrationMode> {
 	const value = await readSetting(db, REGISTRATION_MODE_KEY);
 	if (value && VALID_REGISTRATION_MODES.includes(value as RegistrationMode)) {
 		return value as RegistrationMode;

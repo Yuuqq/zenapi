@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { extractModelPricings, extractSharedModelPricings } from "../services/channel-models";
+import {
+	extractModelPricings,
+	extractSharedModelPricings,
+} from "../services/channel-models";
 import { listActiveChannels } from "../services/channel-repo";
 import { loadPrimaryNameMap } from "../services/model-aliases";
 import { getRegistrationMode, getSiteMode } from "../services/settings";
@@ -14,7 +17,11 @@ publicRoutes.get("/site-info", async (c) => {
 	const siteMode = await getSiteMode(c.env.DB);
 	const registrationMode = await getRegistrationMode(c.env.DB);
 	const linuxdoEnabled = Boolean(c.env.LINUXDO_CLIENT_ID);
-	return c.json({ site_mode: siteMode, registration_mode: registrationMode, linuxdo_enabled: linuxdoEnabled });
+	return c.json({
+		site_mode: siteMode,
+		registration_mode: registrationMode,
+		linuxdo_enabled: linuxdoEnabled,
+	});
 });
 
 /**
@@ -43,9 +50,10 @@ publicRoutes.get("/models", async (c) => {
 	>();
 
 	for (const channel of channels) {
-		const pricings = siteMode === "shared"
-			? extractSharedModelPricings(channel)
-			: extractModelPricings(channel);
+		const pricings =
+			siteMode === "shared"
+				? extractSharedModelPricings(channel)
+				: extractModelPricings(channel);
 		for (const p of pricings) {
 			const existing = modelMap.get(p.id) ?? [];
 			if (siteMode === "shared") {

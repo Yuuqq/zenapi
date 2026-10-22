@@ -1,7 +1,12 @@
 import { useCallback, useMemo, useState } from "hono/jsx/dom";
-import type { Channel, ChannelApiFormat, ChannelForm, SiteMode } from "../core/types";
-import type { ModelAliasConfig, ModelAliasesMap } from "../UserApp";
+import type {
+	Channel,
+	ChannelApiFormat,
+	ChannelForm,
+	SiteMode,
+} from "../core/types";
 import { buildPageItems } from "../core/utils";
+import type { ModelAliasesMap } from "../UserApp";
 
 type ParsedModel = {
 	id: string;
@@ -33,7 +38,13 @@ function parseModelLines(text: string, defaultShared = false): ParsedModel[] {
 function rebuildModelsText(models: ParsedModel[]): string {
 	return models
 		.map((m) => {
-			if (m.input_price || m.output_price || m.shared === true || m.shared === false || m.enabled === false) {
+			if (
+				m.input_price ||
+				m.output_price ||
+				m.shared === true ||
+				m.shared === false ||
+				m.enabled === false
+			) {
 				return `${m.id}|${m.input_price}|${m.output_price}|${m.shared ? "1" : "0"}|${m.enabled ? "1" : "0"}`;
 			}
 			return m.id;
@@ -99,102 +110,105 @@ const ModelPricingEditor = ({
 	return (
 		<div class="mt-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
 			<div class="mb-2 flex items-center justify-between flex-wrap gap-2">
-					<p class="text-xs font-medium uppercase tracking-widest text-stone-400">
-						模型定价 & 共享设置
-					</p>
-					<div class="flex items-center gap-1.5 flex-wrap">
-						<span class="text-xs text-stone-400">
-							{enabledCount}/{parsed.length} 启用
-						</span>
-						<button
-							type="button"
-							class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-								allEnabled
-									? "bg-stone-200 text-stone-500"
-									: "bg-blue-100 text-blue-700 hover:bg-blue-200"
-							}`}
-							onClick={() => toggleAllEnabled(true)}
-							disabled={allEnabled}
-						>
-							全部启用
-						</button>
-						<button
-							type="button"
-							class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-								noneEnabled
-									? "bg-stone-200 text-stone-500"
-									: "bg-stone-100 text-stone-600 hover:bg-stone-200"
-							}`}
-							onClick={() => toggleAllEnabled(false)}
-							disabled={noneEnabled}
-						>
-							全部禁用
-						</button>
-						<span class="text-xs text-stone-300">|</span>
-						<span class="text-xs text-stone-400">
-							{sharedCount}/{parsed.length} 共享
-						</span>
-						<button
-							type="button"
-							class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-								allShared
-									? "bg-stone-200 text-stone-500"
-									: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-							}`}
-							onClick={() => toggleAll(true)}
-							disabled={allShared}
-						>
-							全部共享
-						</button>
-						<button
-							type="button"
-							class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-								noneShared
-									? "bg-stone-200 text-stone-500"
-									: "bg-stone-100 text-stone-600 hover:bg-stone-200"
-							}`}
-							onClick={() => toggleAll(false)}
-							disabled={noneShared}
-						>
-							全部取消
-						</button>
-					</div>
+				<p class="text-xs font-medium uppercase tracking-widest text-stone-400">
+					模型定价 & 共享设置
+				</p>
+				<div class="flex items-center gap-1.5 flex-wrap">
+					<span class="text-xs text-stone-400">
+						{enabledCount}/{parsed.length} 启用
+					</span>
+					<button
+						type="button"
+						class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+							allEnabled
+								? "bg-stone-200 text-stone-500"
+								: "bg-blue-100 text-blue-700 hover:bg-blue-200"
+						}`}
+						onClick={() => toggleAllEnabled(true)}
+						disabled={allEnabled}
+					>
+						全部启用
+					</button>
+					<button
+						type="button"
+						class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+							noneEnabled
+								? "bg-stone-200 text-stone-500"
+								: "bg-stone-100 text-stone-600 hover:bg-stone-200"
+						}`}
+						onClick={() => toggleAllEnabled(false)}
+						disabled={noneEnabled}
+					>
+						全部禁用
+					</button>
+					<span class="text-xs text-stone-300">|</span>
+					<span class="text-xs text-stone-400">
+						{sharedCount}/{parsed.length} 共享
+					</span>
+					<button
+						type="button"
+						class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+							allShared
+								? "bg-stone-200 text-stone-500"
+								: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+						}`}
+						onClick={() => toggleAll(true)}
+						disabled={allShared}
+					>
+						全部共享
+					</button>
+					<button
+						type="button"
+						class={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+							noneShared
+								? "bg-stone-200 text-stone-500"
+								: "bg-stone-100 text-stone-600 hover:bg-stone-200"
+						}`}
+						onClick={() => toggleAll(false)}
+						disabled={noneShared}
+					>
+						全部取消
+					</button>
 				</div>
-				<div class="space-y-2">
-					{parsed.map((m, i) => (
-						<div
-							key={`${m.id}-${i}`}
-							class={`flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 ${!m.enabled ? "opacity-50" : ""}`}
-						>
-							<div class="flex min-w-0 flex-1 items-center gap-2">
-								<button
-									type="button"
-									class={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
-										m.enabled
-											? "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
-											: "border-stone-200 bg-white text-stone-400 hover:bg-stone-100 hover:text-stone-600"
-									}`}
-									onClick={() => updateEnabled(i, !m.enabled)}
-								>
-									{m.enabled ? "启用" : "禁用"}
-								</button>
-								<button
-									type="button"
-									class={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
-										m.shared
-											? "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-											: "border-stone-200 bg-white text-stone-400 hover:bg-stone-100 hover:text-stone-600"
-									}`}
-									onClick={() => updateShared(i, !m.shared)}
-								>
-									{m.shared ? "共享" : "私有"}
-								</button>
-								<span class={`min-w-0 truncate text-xs font-medium ${m.enabled ? "text-stone-700" : "text-stone-400 line-through"}`}>
-									{m.id}
-								</span>
-							</div>
-							<div class="flex shrink-0 items-center gap-1.5">
-								<label class="text-xs text-stone-400">输入</label>
+			</div>
+			<div class="space-y-2">
+				{parsed.map((m, i) => (
+					<div
+						key={`${m.id}-${i}`}
+						class={`flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 ${!m.enabled ? "opacity-50" : ""}`}
+					>
+						<div class="flex min-w-0 flex-1 items-center gap-2">
+							<button
+								type="button"
+								class={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
+									m.enabled
+										? "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+										: "border-stone-200 bg-white text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+								}`}
+								onClick={() => updateEnabled(i, !m.enabled)}
+							>
+								{m.enabled ? "启用" : "禁用"}
+							</button>
+							<button
+								type="button"
+								class={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
+									m.shared
+										? "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+										: "border-stone-200 bg-white text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+								}`}
+								onClick={() => updateShared(i, !m.shared)}
+							>
+								{m.shared ? "共享" : "私有"}
+							</button>
+							<span
+								class={`min-w-0 truncate text-xs font-medium ${m.enabled ? "text-stone-700" : "text-stone-400 line-through"}`}
+							>
+								{m.id}
+							</span>
+						</div>
+						<div class="flex shrink-0 items-center gap-1.5">
+							<label class="text-xs text-stone-400">
+								<span class="mr-1">输入</span>
 								<input
 									class="w-20 rounded border border-stone-200 bg-white px-2 py-1 text-xs text-stone-900 placeholder:text-stone-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-200"
 									type="number"
@@ -210,7 +224,9 @@ const ModelPricingEditor = ({
 										)
 									}
 								/>
-								<label class="text-xs text-stone-400">输出</label>
+							</label>
+							<label class="text-xs text-stone-400">
+								<span class="mr-1">输出</span>
 								<input
 									class="w-20 rounded border border-stone-200 bg-white px-2 py-1 text-xs text-stone-900 placeholder:text-stone-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-200"
 									type="number"
@@ -226,9 +242,10 @@ const ModelPricingEditor = ({
 										)
 									}
 								/>
-							</div>
+							</label>
 						</div>
-					))}
+					</div>
+				))}
 			</div>
 		</div>
 	);
@@ -312,7 +329,9 @@ export const ChannelsView = ({
 	const pageItems = buildPageItems(channelPage, channelTotalPages);
 
 	// Local UI state for expanded alias editors
-	const [expandedAliasModels, setExpandedAliasModels] = useState<Set<string>>(new Set());
+	const [expandedAliasModels, setExpandedAliasModels] = useState<Set<string>>(
+		new Set(),
+	);
 
 	// Parse model IDs from the pipe-delimited models text
 	const parsedModelIds = useMemo(
@@ -335,54 +354,73 @@ export const ChannelsView = ({
 		});
 	}, []);
 
-	const addAlias = useCallback((modelId: string, alias: string) => {
-		const trimmed = alias.trim();
-		if (!trimmed) return;
-		onChannelAliasStateChange({
-			...channelAliasState,
-			[modelId]: {
-				aliases: [
-					...(channelAliasState[modelId]?.aliases ?? []),
-					...(channelAliasState[modelId]?.aliases?.some((a) => a.alias === trimmed) ? [] : [{ alias: trimmed, is_primary: false }]),
-				],
-				alias_only: channelAliasState[modelId]?.alias_only ?? false,
-			},
-		});
-	}, [channelAliasState, onChannelAliasStateChange]);
+	const addAlias = useCallback(
+		(modelId: string, alias: string) => {
+			const trimmed = alias.trim();
+			if (!trimmed) return;
+			onChannelAliasStateChange({
+				...channelAliasState,
+				[modelId]: {
+					aliases: [
+						...(channelAliasState[modelId]?.aliases ?? []),
+						...(channelAliasState[modelId]?.aliases?.some(
+							(a) => a.alias === trimmed,
+						)
+							? []
+							: [{ alias: trimmed, is_primary: false }]),
+					],
+					alias_only: channelAliasState[modelId]?.alias_only ?? false,
+				},
+			});
+		},
+		[channelAliasState, onChannelAliasStateChange],
+	);
 
-	const removeAlias = useCallback((modelId: string, index: number) => {
-		const existing = channelAliasState[modelId];
-		if (!existing) return;
-		onChannelAliasStateChange({
-			...channelAliasState,
-			[modelId]: {
-				...existing,
-				aliases: existing.aliases.filter((_, i) => i !== index),
-			},
-		});
-	}, [channelAliasState, onChannelAliasStateChange]);
+	const removeAlias = useCallback(
+		(modelId: string, index: number) => {
+			const existing = channelAliasState[modelId];
+			if (!existing) return;
+			onChannelAliasStateChange({
+				...channelAliasState,
+				[modelId]: {
+					...existing,
+					aliases: existing.aliases.filter((_, i) => i !== index),
+				},
+			});
+		},
+		[channelAliasState, onChannelAliasStateChange],
+	);
 
-	const setAliasPrimary = useCallback((modelId: string, index: number) => {
-		const existing = channelAliasState[modelId];
-		if (!existing) return;
-		onChannelAliasStateChange({
-			...channelAliasState,
-			[modelId]: {
-				...existing,
-				aliases: existing.aliases.map((a, i) => ({ ...a, is_primary: i === index })),
-			},
-		});
-	}, [channelAliasState, onChannelAliasStateChange]);
+	const setAliasPrimary = useCallback(
+		(modelId: string, index: number) => {
+			const existing = channelAliasState[modelId];
+			if (!existing) return;
+			onChannelAliasStateChange({
+				...channelAliasState,
+				[modelId]: {
+					...existing,
+					aliases: existing.aliases.map((a, i) => ({
+						...a,
+						is_primary: i === index,
+					})),
+				},
+			});
+		},
+		[channelAliasState, onChannelAliasStateChange],
+	);
 
-	const toggleAliasOnly = useCallback((modelId: string, checked: boolean) => {
-		onChannelAliasStateChange({
-			...channelAliasState,
-			[modelId]: {
-				aliases: channelAliasState[modelId]?.aliases ?? [],
-				alias_only: checked,
-			},
-		});
-	}, [channelAliasState, onChannelAliasStateChange]);
+	const toggleAliasOnly = useCallback(
+		(modelId: string, checked: boolean) => {
+			onChannelAliasStateChange({
+				...channelAliasState,
+				[modelId]: {
+					aliases: channelAliasState[modelId]?.aliases ?? [],
+					alias_only: checked,
+				},
+			});
+		},
+		[channelAliasState, onChannelAliasStateChange],
+	);
 	return (
 		<div class="space-y-5">
 			<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-lg">
@@ -400,9 +438,7 @@ export const ChannelsView = ({
 							placeholder="搜索渠道..."
 							value={channelSearch}
 							onInput={(e) =>
-								onSearchChange(
-									(e.currentTarget as HTMLInputElement).value,
-								)
+								onSearchChange((e.currentTarget as HTMLInputElement).value)
 							}
 						/>
 						<button
@@ -727,9 +763,24 @@ export const ChannelsView = ({
 										})
 									}
 								>
-									<option value="openai" selected={channelForm.api_format === "openai"}>OpenAI</option>
-									<option value="anthropic" selected={channelForm.api_format === "anthropic"}>Anthropic (Claude)</option>
-									<option value="custom" selected={channelForm.api_format === "custom"}>Custom</option>
+									<option
+										value="openai"
+										selected={channelForm.api_format === "openai"}
+									>
+										OpenAI
+									</option>
+									<option
+										value="anthropic"
+										selected={channelForm.api_format === "anthropic"}
+									>
+										Anthropic (Claude)
+									</option>
+									<option
+										value="custom"
+										selected={channelForm.api_format === "custom"}
+									>
+										Custom
+									</option>
 								</select>
 							</div>
 							<div>
@@ -774,7 +825,8 @@ export const ChannelsView = ({
 									value={channelForm.api_key}
 									onInput={(event) =>
 										onFormChange({
-											api_key: (event.currentTarget as HTMLTextAreaElement).value,
+											api_key: (event.currentTarget as HTMLTextAreaElement)
+												.value,
 										})
 									}
 								/>
@@ -829,9 +881,7 @@ export const ChannelsView = ({
 								<ModelPricingEditor
 									models={channelForm.models}
 									siteMode={siteMode}
-									onModelsChange={(value) =>
-										onFormChange({ models: value })
-									}
+									onModelsChange={(value) => onFormChange({ models: value })}
 								/>
 								{/* Per-model alias editor */}
 								{parsedModelIds.length > 0 && (
@@ -851,8 +901,12 @@ export const ChannelsView = ({
 															class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-stone-50"
 															onClick={() => toggleAliasExpanded(modelId)}
 														>
-															<span class="text-xs text-stone-400">{isExpanded ? "▼" : "▶"}</span>
-															<span class="flex-1 truncate font-mono text-xs text-stone-800">{modelId}</span>
+															<span class="text-xs text-stone-400">
+																{isExpanded ? "▼" : "▶"}
+															</span>
+															<span class="flex-1 truncate font-mono text-xs text-stone-800">
+																{modelId}
+															</span>
 															{aliasCount > 0 && (
 																<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
 																	{aliasCount} 个别名
@@ -861,32 +915,39 @@ export const ChannelsView = ({
 														</button>
 														{isExpanded && (
 															<div class="border-t border-stone-100 px-3 py-2.5">
-																{config?.aliases && config.aliases.length > 0 && (
-																	<div class="mb-2 space-y-1.5">
-																		{config.aliases.map((alias, index) => (
-																			<div class="flex items-center gap-2 rounded border border-stone-100 bg-stone-50 px-2 py-1.5">
-																				<label class="flex cursor-pointer items-center gap-1 text-xs text-stone-500">
-																					<input
-																						type="radio"
-																						name={`admin-primary-${modelId}`}
-																						checked={alias.is_primary}
-																						onChange={() => setAliasPrimary(modelId, index)}
-																						class="accent-amber-500"
-																					/>
-																					主名
-																				</label>
-																				<span class="flex-1 break-all font-mono text-xs text-stone-700">{alias.alias}</span>
-																				<button
-																					type="button"
-																					class="rounded px-1.5 py-0.5 text-xs text-red-400 hover:bg-red-50 hover:text-red-600"
-																					onClick={() => removeAlias(modelId, index)}
-																				>
-																					删除
-																				</button>
-																			</div>
-																		))}
-																	</div>
-																)}
+																{config?.aliases &&
+																	config.aliases.length > 0 && (
+																		<div class="mb-2 space-y-1.5">
+																			{config.aliases.map((alias, index) => (
+																				<div class="flex items-center gap-2 rounded border border-stone-100 bg-stone-50 px-2 py-1.5">
+																					<label class="flex cursor-pointer items-center gap-1 text-xs text-stone-500">
+																						<input
+																							type="radio"
+																							name={`admin-primary-${modelId}`}
+																							checked={alias.is_primary}
+																							onChange={() =>
+																								setAliasPrimary(modelId, index)
+																							}
+																							class="accent-amber-500"
+																						/>
+																						主名
+																					</label>
+																					<span class="flex-1 break-all font-mono text-xs text-stone-700">
+																						{alias.alias}
+																					</span>
+																					<button
+																						type="button"
+																						class="rounded px-1.5 py-0.5 text-xs text-red-400 hover:bg-red-50 hover:text-red-600"
+																						onClick={() =>
+																							removeAlias(modelId, index)
+																						}
+																					>
+																						删除
+																					</button>
+																				</div>
+																			))}
+																		</div>
+																	)}
 																<div class="flex gap-1.5">
 																	<input
 																		type="text"
@@ -895,7 +956,8 @@ export const ChannelsView = ({
 																		onKeyDown={(e) => {
 																			if (e.key === "Enter") {
 																				e.preventDefault();
-																				const input = e.currentTarget as HTMLInputElement;
+																				const input =
+																					e.currentTarget as HTMLInputElement;
 																				addAlias(modelId, input.value);
 																				input.value = "";
 																			}
@@ -905,7 +967,10 @@ export const ChannelsView = ({
 																		type="button"
 																		class="rounded border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
 																		onClick={(e) => {
-																			const input = (e.currentTarget as HTMLElement).previousElementSibling as HTMLInputElement;
+																			const input = (
+																				e.currentTarget as HTMLElement
+																			)
+																				.previousElementSibling as HTMLInputElement;
 																			addAlias(modelId, input.value);
 																			input.value = "";
 																		}}
@@ -918,11 +983,21 @@ export const ChannelsView = ({
 																		<input
 																			type="checkbox"
 																			checked={config?.alias_only ?? false}
-																			onChange={(e) => toggleAliasOnly(modelId, (e.currentTarget as HTMLInputElement).checked)}
+																			onChange={(e) =>
+																				toggleAliasOnly(
+																					modelId,
+																					(e.currentTarget as HTMLInputElement)
+																						.checked,
+																				)
+																			}
 																			class="accent-amber-500"
 																		/>
-																		<span class="text-xs text-stone-700">仅限别名</span>
-																		<span class="text-xs text-stone-400">— 隐藏原始模型名</span>
+																		<span class="text-xs text-stone-700">
+																			仅限别名
+																		</span>
+																		<span class="text-xs text-stone-400">
+																			— 隐藏原始模型名
+																		</span>
 																	</label>
 																)}
 															</div>

@@ -1,17 +1,17 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { type TokenRecord, tokenAuth } from "../middleware/tokenAuth";
-import { type ChannelRecord, createWeightedOrder } from "../services/channels";
 import { resolveChannelRoute } from "../services/channel-route";
-import { resolveModelNames, loadAliasOnlySet } from "../services/model-aliases";
+import { type ChannelRecord, createWeightedOrder } from "../services/channels";
 import {
 	anthropicToOpenaiRequest,
 	createOpenaiToAnthropicStreamTransform,
 	openaiToAnthropicResponse,
 } from "../services/format-converter";
-import { recordUsage } from "../services/usage";
+import { loadAliasOnlySet, resolveModelNames } from "../services/model-aliases";
 import { calculateCost, getModelPrice } from "../services/pricing";
 import { getSiteMode } from "../services/settings";
+import { recordUsage } from "../services/usage";
 import { jsonError } from "../utils/http";
 import { safeJsonParse } from "../utils/json";
 import { parseApiKeys, shuffleArray } from "../utils/keys";
@@ -23,7 +23,14 @@ import {
 	parseUsageFromHeaders,
 	parseUsageFromSse,
 } from "../utils/usage";
-import { channelSupportsModel, channelSupportsSharedModel, channelSupportsAnyModel, channelSupportsAnySharedModel, filterAllowedChannels, findChannelModelName } from "./proxy";
+import {
+	channelSupportsAnyModel,
+	channelSupportsAnySharedModel,
+	channelSupportsModel,
+	channelSupportsSharedModel,
+	filterAllowedChannels,
+	findChannelModelName,
+} from "./proxy";
 
 const anthropicProxy = new Hono<AppEnv>();
 
@@ -54,7 +61,12 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 	if (model && resolvedNames.length === 1) {
 		const aliasOnlySet = await loadAliasOnlySet(c.env.DB);
 		if (aliasOnlySet.has(model)) {
-			return jsonError(c, 404, "model_not_found", `The model '${model}' does not exist or is not available.`);
+			return jsonError(
+				c,
+				404,
+				"model_not_found",
+				`The model '${model}' does not exist or is not available.`,
+			);
 		}
 	}
 
@@ -142,9 +154,7 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 		const supportsFn = useSharedFilter
 			? channelSupportsSharedModel
 			: channelSupportsModel;
-		candidates = allowedChannels.filter((channel) =>
-			supportsFn(channel, null),
-		);
+		candidates = allowedChannels.filter((channel) => supportsFn(channel, null));
 	}
 
 	if (candidates.length === 0) {
@@ -369,7 +379,10 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 	// Record usage
 	const channelForUsage = selectedChannel ?? lastChannel;
 	if (channelForUsage && lastResponse) {
-		const price = getModelPrice(channelForUsage.models_json, selectedModelName ?? "");
+		const price = getModelPrice(
+			channelForUsage.models_json,
+			selectedModelName ?? "",
+		);
 		let errorCode: number | null = null;
 		let errorMessage: string | null = null;
 		if (!lastResponse.ok) {
@@ -391,7 +404,12 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 				completionTokens: 0,
 			};
 			const cost = price
-				? calculateCost(price, normalized.promptTokens, normalized.completionTokens, normalized.totalTokens)
+				? calculateCost(
+						price,
+						normalized.promptTokens,
+						normalized.completionTokens,
+						normalized.totalTokens,
+					)
 				: 0;
 			await recordUsage(c.env.DB, {
 				tokenId: tokenRecord.id,
@@ -435,7 +453,9 @@ anthropicProxy.post("/messages", tokenAuth, async (c) => {
 					// SSE parsing failed (stream interrupted, etc.) — still record with whatever we have
 					try {
 						await recordFn(headerUsage, null);
-					} catch { /* truly lost */ }
+					} catch {
+						/* truly lost */
+					}
 				});
 			if (executionCtx?.waitUntil) {
 				executionCtx.waitUntil(task);

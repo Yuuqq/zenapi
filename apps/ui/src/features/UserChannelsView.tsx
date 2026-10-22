@@ -68,11 +68,15 @@ export const UserChannelsView = ({
 	onRefresh,
 }: UserChannelsViewProps) => {
 	const [showModal, setShowModal] = useState(false);
-	const [editingChannel, setEditingChannel] = useState<ChannelItem | null>(null);
+	const [editingChannel, setEditingChannel] = useState<ChannelItem | null>(
+		null,
+	);
 	const [notice, setNotice] = useState("");
 	const [form, setForm] = useState<ChannelFormData>({ ...emptyForm });
 	// Per-model alias state: Record<modelId, { aliases, alias_only }>
-	const [aliasState, setAliasState] = useState<Record<string, ModelAliasConfig>>({});
+	const [aliasState, setAliasState] = useState<
+		Record<string, ModelAliasConfig>
+	>({});
 	// Track which models have their alias editor expanded
 	const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());
 
@@ -90,34 +94,37 @@ export const UserChannelsView = ({
 		setNotice("");
 	}, []);
 
-	const openEdit = useCallback((ch: ChannelItem) => {
-		setEditingChannel(ch);
-		setForm({
-			name: ch.name ?? "",
-			base_url: ch.base_url ?? "",
-			api_key: ch.api_key ?? "",
-			api_format: (ch.api_format ?? "openai") as ChannelApiFormat,
-			models: parseModelsJsonToText(ch.models_json),
-		});
-		// Initialize alias state from modelAliases for this channel's models
-		const models = parseModelsJsonToText(ch.models_json)
-			.split("\n")
-			.map((l) => l.trim())
-			.filter(Boolean);
-		const initial: Record<string, ModelAliasConfig> = {};
-		for (const m of models) {
-			if (modelAliases[m]) {
-				initial[m] = {
-					aliases: modelAliases[m].aliases.map((a) => ({ ...a })),
-					alias_only: modelAliases[m].alias_only,
-				};
+	const openEdit = useCallback(
+		(ch: ChannelItem) => {
+			setEditingChannel(ch);
+			setForm({
+				name: ch.name ?? "",
+				base_url: ch.base_url ?? "",
+				api_key: ch.api_key ?? "",
+				api_format: (ch.api_format ?? "openai") as ChannelApiFormat,
+				models: parseModelsJsonToText(ch.models_json),
+			});
+			// Initialize alias state from modelAliases for this channel's models
+			const models = parseModelsJsonToText(ch.models_json)
+				.split("\n")
+				.map((l) => l.trim())
+				.filter(Boolean);
+			const initial: Record<string, ModelAliasConfig> = {};
+			for (const m of models) {
+				if (modelAliases[m]) {
+					initial[m] = {
+						aliases: modelAliases[m].aliases.map((a) => ({ ...a })),
+						alias_only: modelAliases[m].alias_only,
+					};
+				}
 			}
-		}
-		setAliasState(initial);
-		setExpandedModels(new Set());
-		setShowModal(true);
-		setNotice("");
-	}, [modelAliases]);
+			setAliasState(initial);
+			setExpandedModels(new Set());
+			setShowModal(true);
+			setNotice("");
+		},
+		[modelAliases],
+	);
 
 	const closeModal = useCallback(() => {
 		setShowModal(false);
@@ -151,7 +158,10 @@ export const UserChannelsView = ({
 					api_key: form.api_key.trim(),
 					api_format: form.api_format,
 					models: models.length > 0 ? models : undefined,
-					model_aliases: Object.keys(modelAliasPayload).length > 0 ? modelAliasPayload : undefined,
+					model_aliases:
+						Object.keys(modelAliasPayload).length > 0
+							? modelAliasPayload
+							: undefined,
 				};
 				if (editingChannel) {
 					await apiFetch(`/api/u/channels/${editingChannel.id}`, {
@@ -317,9 +327,7 @@ export const UserChannelsView = ({
 									<td class="py-2.5 pr-4 font-medium text-stone-700">
 										{ch.name}
 									</td>
-									<td class="py-2.5 pr-4 text-stone-600">
-										{ch.api_format}
-									</td>
+									<td class="py-2.5 pr-4 text-stone-600">{ch.api_format}</td>
 									<td class="py-2.5 pr-4">
 										<span
 											class={`rounded-full px-2 py-0.5 text-xs ${
@@ -328,9 +336,7 @@ export const UserChannelsView = ({
 													: "bg-stone-100 text-stone-500"
 											}`}
 										>
-											{ch.status === "active"
-												? "启用"
-												: "停用"}
+											{ch.status === "active" ? "启用" : "停用"}
 										</span>
 									</td>
 									<td class="py-2.5">
@@ -366,10 +372,8 @@ export const UserChannelsView = ({
 							{isEditing ? "编辑渠道" : "贡献渠道"}
 						</h3>
 						<form class="grid gap-4" onSubmit={handleSubmit}>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
-									渠道名称
-								</label>
+							<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+								<span class="block">渠道名称</span>
 								<input
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									type="text"
@@ -378,82 +382,98 @@ export const UserChannelsView = ({
 									onInput={(e) =>
 										setForm((prev) => ({
 											...prev,
-											name:
-												(
-													e.currentTarget as HTMLInputElement
-												)?.value ?? "",
+											name: (e.currentTarget as HTMLInputElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+							</label>
+
+							<label class="block">
+								<span class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
 									{form.api_format === "custom"
 										? "完整请求 URL"
 										: "Base URL（含版本路径，如 /v1）"}
-								</label>
+								</span>
 								<input
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									type="url"
 									required
-									placeholder={form.api_format === "anthropic" ? "https://api.anthropic.com/anthropic" : form.api_format === "custom" ? "https://example.com/v1/chat/completions" : "https://api.openai.com/v1"}
+									placeholder={
+										form.api_format === "anthropic"
+											? "https://api.anthropic.com/anthropic"
+											: form.api_format === "custom"
+												? "https://example.com/v1/chat/completions"
+												: "https://api.openai.com/v1"
+									}
 									value={form.base_url}
 									onInput={(e) =>
 										setForm((prev) => ({
 											...prev,
 											base_url:
-												(
-													e.currentTarget as HTMLInputElement
-												)?.value ?? "",
+												(e.currentTarget as HTMLInputElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+							</label>
+							<label class="block">
+								<span class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
 									API Key
-								</label>
+								</span>
 								<textarea
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 font-mono"
 									rows={3}
-									placeholder={isEditing ? "留空不修改" : "每行一个 API Key（可留空）"}
+									placeholder={
+										isEditing ? "留空不修改" : "每行一个 API Key（可留空）"
+									}
 									value={form.api_key}
 									onInput={(e) =>
 										setForm((prev) => ({
 											...prev,
 											api_key:
-												(
-													e.currentTarget as HTMLTextAreaElement
-												)?.value ?? "",
+												(e.currentTarget as HTMLTextAreaElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+							</label>
+							<label class="block">
+								<span class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
 									API 格式
-								</label>
+								</span>
 								<select
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									value={form.api_format}
 									onChange={(e) =>
 										setForm((prev) => ({
 											...prev,
-											api_format: (
-												e.currentTarget as HTMLSelectElement
-											)?.value as ChannelApiFormat,
+											api_format: (e.currentTarget as HTMLSelectElement)
+												?.value as ChannelApiFormat,
 										}))
 									}
 								>
-									<option value="openai" selected={form.api_format === "openai"}>OpenAI</option>
-									<option value="anthropic" selected={form.api_format === "anthropic"}>Anthropic</option>
-									<option value="custom" selected={form.api_format === "custom"}>Custom</option>
+									<option
+										value="openai"
+										selected={form.api_format === "openai"}
+									>
+										OpenAI
+									</option>
+									<option
+										value="anthropic"
+										selected={form.api_format === "anthropic"}
+									>
+										Anthropic
+									</option>
+									<option
+										value="custom"
+										selected={form.api_format === "custom"}
+									>
+										Custom
+									</option>
 								</select>
-							</div>
-							<div>
-								<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+							</label>
+							<label class="block">
+								<span class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
 									模型列表（每行一个）
-								</label>
+								</span>
 								<textarea
 									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
 									rows={4}
@@ -462,19 +482,18 @@ export const UserChannelsView = ({
 										setForm((prev) => ({
 											...prev,
 											models:
-												(
-													e.currentTarget as HTMLTextAreaElement
-												)?.value ?? "",
+												(e.currentTarget as HTMLTextAreaElement)?.value ?? "",
 										}))
 									}
 								/>
-							</div>
+							</label>
+
 							{/* Per-model alias editor */}
 							{parsedModels.length > 0 && (
 								<div>
-									<label class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
+									<div class="mb-1.5 block text-xs uppercase tracking-widest text-stone-500">
 										模型别名配置
-									</label>
+									</div>
 									<div class="space-y-1">
 										{parsedModels.map((modelId) => {
 											const config = aliasState[modelId];
@@ -487,8 +506,12 @@ export const UserChannelsView = ({
 														class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-stone-50"
 														onClick={() => toggleModelExpanded(modelId)}
 													>
-														<span class="text-xs text-stone-400">{isExpanded ? "▼" : "▶"}</span>
-														<span class="flex-1 truncate font-mono text-xs text-stone-800">{modelId}</span>
+														<span class="text-xs text-stone-400">
+															{isExpanded ? "▼" : "▶"}
+														</span>
+														<span class="flex-1 truncate font-mono text-xs text-stone-800">
+															{modelId}
+														</span>
 														{aliasCount > 0 && (
 															<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
 																{aliasCount} 个别名
@@ -507,16 +530,22 @@ export const UserChannelsView = ({
 																					type="radio"
 																					name={`primary-${modelId}`}
 																					checked={alias.is_primary}
-																					onChange={() => setPrimary(modelId, index)}
+																					onChange={() =>
+																						setPrimary(modelId, index)
+																					}
 																					class="accent-amber-500"
 																				/>
 																				主名
 																			</label>
-																			<span class="flex-1 break-all font-mono text-xs text-stone-700">{alias.alias}</span>
+																			<span class="flex-1 break-all font-mono text-xs text-stone-700">
+																				{alias.alias}
+																			</span>
 																			<button
 																				type="button"
 																				class="rounded px-1.5 py-0.5 text-xs text-red-400 hover:bg-red-50 hover:text-red-600"
-																				onClick={() => removeAlias(modelId, index)}
+																				onClick={() =>
+																					removeAlias(modelId, index)
+																				}
 																			>
 																				删除
 																			</button>
@@ -533,7 +562,8 @@ export const UserChannelsView = ({
 																	onKeyDown={(e) => {
 																		if (e.key === "Enter") {
 																			e.preventDefault();
-																			const input = e.currentTarget as HTMLInputElement;
+																			const input =
+																				e.currentTarget as HTMLInputElement;
 																			addAlias(modelId, input.value);
 																			input.value = "";
 																		}
@@ -543,7 +573,10 @@ export const UserChannelsView = ({
 																	type="button"
 																	class="rounded border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
 																	onClick={(e) => {
-																		const input = (e.currentTarget as HTMLElement).previousElementSibling as HTMLInputElement;
+																		const input = (
+																			e.currentTarget as HTMLElement
+																		)
+																			.previousElementSibling as HTMLInputElement;
 																		addAlias(modelId, input.value);
 																		input.value = "";
 																	}}
@@ -557,11 +590,21 @@ export const UserChannelsView = ({
 																	<input
 																		type="checkbox"
 																		checked={config?.alias_only ?? false}
-																		onChange={(e) => toggleAliasOnly(modelId, (e.currentTarget as HTMLInputElement).checked)}
+																		onChange={(e) =>
+																			toggleAliasOnly(
+																				modelId,
+																				(e.currentTarget as HTMLInputElement)
+																					.checked,
+																			)
+																		}
 																		class="accent-amber-500"
 																	/>
-																	<span class="text-xs text-stone-700">仅限别名</span>
-																	<span class="text-xs text-stone-400">— 隐藏原始模型名</span>
+																	<span class="text-xs text-stone-700">
+																		仅限别名
+																	</span>
+																	<span class="text-xs text-stone-400">
+																		— 隐藏原始模型名
+																	</span>
 																</label>
 															)}
 														</div>

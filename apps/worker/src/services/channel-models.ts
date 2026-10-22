@@ -18,7 +18,13 @@ export type ModelEntry = {
 	outputPrice?: number;
 };
 
-type ModelLike = { id?: unknown; input_price?: unknown; output_price?: unknown; shared?: unknown; enabled?: unknown };
+type ModelLike = {
+	id?: unknown;
+	input_price?: unknown;
+	output_price?: unknown;
+	shared?: unknown;
+	enabled?: unknown;
+};
 
 function toModelId(item: unknown): string {
 	if (item && typeof item === "object" && "id" in item) {
@@ -86,7 +92,9 @@ export function extractModelIds(
 export function extractModels(
 	channel: Pick<ChannelRow, "id" | "name" | "models_json">,
 ): ModelEntry[] {
-	const pricings = extractModelPricings(channel).filter((p) => p.enabled !== false);
+	const pricings = extractModelPricings(channel).filter(
+		(p) => p.enabled !== false,
+	);
 	return pricings.map((p) => ({
 		id: p.id,
 		label: p.id,
@@ -132,7 +140,9 @@ export function extractModelPricings(
 export function extractSharedModelPricings(
 	channel: Pick<ChannelRow, "models_json">,
 ): ModelPricing[] {
-	return extractModelPricings(channel).filter((m) => m.shared !== false && m.enabled !== false);
+	return extractModelPricings(channel).filter(
+		(m) => m.shared !== false && m.enabled !== false,
+	);
 }
 
 export function extractSharedModels(
