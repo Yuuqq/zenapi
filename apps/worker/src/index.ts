@@ -69,7 +69,7 @@ app.use(
 	"/api/*",
 	cors({
 		origin: (_origin, c) => {
-			const allowed = c.env.CORS_ORIGIN ?? "*";
+			const allowed = c.env?.CORS_ORIGIN ?? "*";
 			return allowed === "*"
 				? "*"
 				: allowed.split(",").map((item: string) => item.trim());

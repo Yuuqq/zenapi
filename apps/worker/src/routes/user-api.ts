@@ -16,6 +16,19 @@ const userApi = new Hono<AppEnv>();
 userApi.use("/*", userAuth);
 
 /**
+ * Returns true when the value parses as an absolute http(s) URL.
+ * Blocks javascript:/data: payloads from being stored and later rendered as an href.
+ */
+function isHttpUrl(value: string): boolean {
+	try {
+		const protocol = new URL(value).protocol;
+		return protocol === "http:" || protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Updates the current user's profile (tip_url).
  */
 userApi.patch("/profile", async (c) => {
@@ -27,6 +40,9 @@ userApi.patch("/profile", async (c) => {
 
 	if (body.tip_url !== undefined) {
 		const tipUrl = String(body.tip_url).trim() || null;
+		if (tipUrl && !isHttpUrl(tipUrl)) {
+			return jsonError(c, 400, "invalid_tip_url", "tip_url must be an http(s) URL");
+		}
 		await c.env.DB.prepare(
 			"UPDATE users SET tip_url = ?, updated_at = ? WHERE id = ?",
 		)

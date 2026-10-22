@@ -6,12 +6,14 @@ const dashboard = new Hono<AppEnv>();
 function buildDateFilters(query: Record<string, string>) {
 	let sql = " WHERE 1=1";
 	const params: Array<string> = [];
+	// Qualify the column: the channel/token aggregations below join tables
+	// that also expose `created_at`, which SQLite rejects as ambiguous.
 	if (query.from) {
-		sql += " AND created_at >= ?";
+		sql += " AND usage_logs.created_at >= ?";
 		params.push(query.from);
 	}
 	if (query.to) {
-		sql += " AND created_at <= ?";
+		sql += " AND usage_logs.created_at <= ?";
 		params.push(query.to);
 	}
 	return { sql, params };
