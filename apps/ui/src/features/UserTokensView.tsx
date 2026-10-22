@@ -6,14 +6,12 @@ type UserTokensViewProps = {
 	tokens: Token[];
 	onCreate: (name: string) => void;
 	onDelete: (id: string) => void;
-	onReveal: (id: string) => void;
 };
 
 export const UserTokensView = ({
 	tokens,
 	onCreate,
 	onDelete,
-	onReveal,
 }: UserTokensViewProps) => {
 	const [showModal, setShowModal] = useState(false);
 	const [tokenName, setTokenName] = useState("");
@@ -94,13 +92,6 @@ export const UserTokensView = ({
 									</td>
 									<td class="py-2.5">
 										<div class="flex gap-2">
-											<button
-												type="button"
-												class="text-xs text-amber-600 hover:text-amber-700"
-												onClick={() => onReveal(token.id)}
-											>
-												复制
-											</button>
 											<button
 												type="button"
 												class="text-xs text-red-500 hover:text-red-600"

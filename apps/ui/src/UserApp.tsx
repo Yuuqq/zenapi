@@ -247,28 +247,6 @@ export const UserApp = ({
 		[apiFetch, loadTokens],
 	);
 
-	const handleTokenReveal = useCallback(
-		async (id: string) => {
-			try {
-				const result = await apiFetch<{ token: string | null }>(
-					`/api/u/tokens/${id}/reveal`,
-				);
-				if (!result.token) {
-					setNotice("未找到令牌");
-					return;
-				}
-				try {
-					await navigator.clipboard.writeText(result.token);
-					setNotice(`令牌已复制到剪贴板：${result.token}`);
-				} catch {
-					setNotice(`令牌: ${result.token}`);
-				}
-			} catch (error) {
-				setNotice((error as Error).message);
-			}
-		},
-		[apiFetch],
-	);
 
 	const toggleMobileMenu = useCallback(
 		() => setMobileMenuOpen((prev) => !prev),
@@ -317,7 +295,6 @@ export const UserApp = ({
 					tokens={tokens}
 					onCreate={handleTokenCreate}
 					onDelete={handleTokenDelete}
-					onReveal={handleTokenReveal}
 				/>
 			);
 		}

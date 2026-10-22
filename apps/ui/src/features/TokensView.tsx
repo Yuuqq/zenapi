@@ -13,7 +13,6 @@ type TokensViewProps = {
 	onPageChange: (next: number) => void;
 	onPageSizeChange: (next: number) => void;
 	onSubmit: (event: Event) => void;
-	onReveal: (id: string) => void;
 	onToggle: (id: string, status: string) => void;
 	onDelete: (id: string) => void;
 };
@@ -35,7 +34,6 @@ export const TokensView = ({
 	onPageChange,
 	onPageSizeChange,
 	onSubmit,
-	onReveal,
 	onToggle,
 	onDelete,
 }: TokensViewProps) => {
@@ -126,13 +124,6 @@ export const TokensView = ({
 										</div>
 										<div class="flex flex-wrap gap-2">
 											<button
-												class="h-9 rounded-full border border-stone-200 bg-stone-100 px-3 text-xs font-semibold text-stone-900 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
-												type="button"
-												onClick={() => onReveal(tokenItem.id)}
-											>
-												查看
-											</button>
-											<button
 												class="h-9 rounded-full border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-600 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:text-stone-900 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
 												type="button"
 												onClick={() => onToggle(tokenItem.id, tokenItem.status)}
@@ -205,13 +196,6 @@ export const TokensView = ({
 										<span>{formatDateTime(tokenItem.created_at)}</span>
 									</div>
 									<div class="mt-3 flex flex-wrap gap-2">
-										<button
-											class="h-10 rounded-full border border-stone-200 bg-stone-100 px-3 text-xs font-semibold text-stone-900 transition-all duration-200 ease-in-out hover:shadow-lg"
-											type="button"
-											onClick={() => onReveal(tokenItem.id)}
-										>
-											查看
-										</button>
 										<button
 											class="h-10 rounded-full border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-600 transition-all duration-200 ease-in-out hover:text-stone-900 hover:shadow-lg"
 											type="button"

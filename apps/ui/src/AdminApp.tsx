@@ -576,28 +576,6 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 		[apiFetch, loadTokens],
 	);
 
-	const handleTokenReveal = useCallback(
-		async (id: string) => {
-			try {
-				const result = await apiFetch<{ token: string | null }>(
-					`/api/tokens/${id}/reveal`,
-				);
-				if (!result.token) {
-					setNotice("未找到令牌");
-					return;
-				}
-				try {
-					await navigator.clipboard.writeText(result.token);
-					setNotice(`令牌已复制到剪贴板：${result.token}`);
-				} catch {
-					setNotice(`令牌: ${result.token}`);
-				}
-			} catch (error) {
-				setNotice((error as Error).message);
-			}
-		},
-		[apiFetch],
-	);
 
 	const handleTokenToggle = useCallback(
 		async (id: string, status: string) => {
@@ -836,7 +814,6 @@ export const AdminApp = ({ token, updateToken, onNavigate }: AdminAppProps) => {
 					onPageChange={handleTokenPageChange}
 					onPageSizeChange={handleTokenPageSizeChange}
 					onSubmit={handleTokenSubmit}
-					onReveal={handleTokenReveal}
 					onToggle={handleTokenToggle}
 					onDelete={handleTokenDelete}
 				/>
