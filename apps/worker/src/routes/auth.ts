@@ -8,6 +8,7 @@ import {
 } from "../services/settings";
 import { generateToken, sha256Hex } from "../utils/crypto";
 import { jsonError } from "../utils/http";
+import { hashPassword, needsRehash, verifyPassword } from "../utils/password";
 import { addHours, nowIso } from "../utils/time";
 
 const auth = new Hono<AppEnv>();
@@ -22,13 +23,16 @@ auth.post("/login", async (c) => {
 	}
 
 	const password = String(body.password);
-	const passwordHash = await sha256Hex(password);
 	const storedHash = await getAdminPasswordHash(c.env.DB);
 
 	if (!storedHash) {
-		await setAdminPasswordHash(c.env.DB, passwordHash);
-	} else if (passwordHash !== storedHash) {
+		// First login claims the account: whatever password is typed becomes it.
+		await setAdminPasswordHash(c.env.DB, await hashPassword(password));
+	} else if (!(await verifyPassword(password, storedHash))) {
 		return jsonError(c, 401, "invalid_password", "invalid_password");
+	} else if (needsRehash(storedHash)) {
+		// Legacy SHA-256 rows are upgraded on the first successful login.
+		await setAdminPasswordHash(c.env.DB, await hashPassword(password));
 	}
 
 	const rawToken = generateToken("admin_");

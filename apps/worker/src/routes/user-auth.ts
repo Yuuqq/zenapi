@@ -5,6 +5,7 @@ import { userAuth } from "../middleware/userAuth";
 import { getRegistrationMode, getSiteMode } from "../services/settings";
 import { generateToken, sha256Hex } from "../utils/crypto";
 import { jsonError } from "../utils/http";
+import { hashPassword, needsRehash, verifyPassword } from "../utils/password";
 import { addHours, nowIso } from "../utils/time";
 
 const LINUXDO_AUTH_URL = "https://connect.linux.do/oauth2/authorize";
@@ -29,7 +30,12 @@ userAuthRoutes.post("/register", async (c) => {
 
 	const body = await c.req.json().catch(() => null);
 	if (!body?.email || !body?.name || !body?.password) {
-		return jsonError(c, 400, "missing_fields", "email, name, password required");
+		return jsonError(
+			c,
+			400,
+			"missing_fields",
+			"email, name, password required",
+		);
 	}
 
 	const email = String(body.email).trim().toLowerCase();
@@ -58,14 +64,24 @@ userAuthRoutes.post("/register", async (c) => {
 	}
 
 	const id = crypto.randomUUID();
-	const passwordHash = await sha256Hex(password);
+	const passwordHash = await hashPassword(password);
 	const now = nowIso();
 	const defaultBalance = siteMode === "shared" ? 100 : 0;
 
 	await c.env.DB.prepare(
 		"INSERT INTO users (id, email, name, password_hash, role, balance, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	)
-		.bind(id, email, name, passwordHash, "user", defaultBalance, "active", now, now)
+		.bind(
+			id,
+			email,
+			name,
+			passwordHash,
+			"user",
+			defaultBalance,
+			"active",
+			now,
+			now,
+		)
 		.run();
 
 	// Auto-login after registration
@@ -82,7 +98,14 @@ userAuthRoutes.post("/register", async (c) => {
 	return c.json({
 		token: rawToken,
 		expires_at: expiresAt,
-		user: { id, email, name, role: "user", balance: defaultBalance, status: "active" },
+		user: {
+			id,
+			email,
+			name,
+			role: "user",
+			balance: defaultBalance,
+			status: "active",
+		},
 	});
 });
 
@@ -98,7 +121,6 @@ userAuthRoutes.post("/login", async (c) => {
 
 	const accountStr = String(account).trim().toLowerCase();
 	const password = String(body.password);
-	const passwordHash = await sha256Hex(password);
 
 	const user = await c.env.DB.prepare(
 		"SELECT id, email, name, role, balance, status, password_hash FROM users WHERE email = ? OR LOWER(name) = ?",
@@ -106,8 +128,15 @@ userAuthRoutes.post("/login", async (c) => {
 		.bind(accountStr, accountStr)
 		.first<UserRecord & { password_hash: string }>();
 
-	if (!user || user.password_hash !== passwordHash) {
+	if (!user || !(await verifyPassword(password, user.password_hash))) {
 		return jsonError(c, 401, "invalid_credentials", "invalid_credentials");
+	}
+
+	if (needsRehash(user.password_hash)) {
+		// Legacy SHA-256 rows upgrade on the first successful login.
+		await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?")
+			.bind(await hashPassword(password), user.id)
+			.run();
 	}
 
 	if (user.status !== "active") {
@@ -146,9 +175,7 @@ userAuthRoutes.post("/logout", userAuth, async (c) => {
 	const token = c.req.header("Authorization")?.slice(7)?.trim();
 	if (token) {
 		const tokenHash = await sha256Hex(token);
-		await c.env.DB.prepare(
-			"DELETE FROM user_sessions WHERE token_hash = ?",
-		)
+		await c.env.DB.prepare("DELETE FROM user_sessions WHERE token_hash = ?")
 			.bind(tokenHash)
 			.run();
 	}
@@ -180,7 +207,12 @@ userAuthRoutes.get("/me", userAuth, async (c) => {
 userAuthRoutes.get("/linuxdo", async (c) => {
 	const clientId = c.env.LINUXDO_CLIENT_ID;
 	if (!clientId) {
-		return jsonError(c, 503, "linuxdo_not_configured", "Linux DO login is not configured");
+		return jsonError(
+			c,
+			503,
+			"linuxdo_not_configured",
+			"Linux DO login is not configured",
+		);
 	}
 
 	// Linux DO login/register redirect.
@@ -208,7 +240,10 @@ userAuthRoutes.get("/linuxdo", async (c) => {
 
 	const headers = new Headers();
 	headers.set("Location", `${LINUXDO_AUTH_URL}?${params.toString()}`);
-	headers.set("Set-Cookie", `linuxdo_state=${stateHash}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`);
+	headers.set(
+		"Set-Cookie",
+		`linuxdo_state=${stateHash}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`,
+	);
 
 	return new Response(null, { status: 302, headers });
 });
@@ -220,7 +255,12 @@ userAuthRoutes.get("/linuxdo", async (c) => {
 userAuthRoutes.get("/linuxdo/bind", async (c) => {
 	const clientId = c.env.LINUXDO_CLIENT_ID;
 	if (!clientId) {
-		return jsonError(c, 503, "linuxdo_not_configured", "Linux DO login is not configured");
+		return jsonError(
+			c,
+			503,
+			"linuxdo_not_configured",
+			"Linux DO login is not configured",
+		);
 	}
 
 	const token = c.req.query("token");
@@ -236,7 +276,10 @@ userAuthRoutes.get("/linuxdo/bind", async (c) => {
 		.bind(tokenHash)
 		.first<{ user_id: string; expires_at: string }>();
 
-	if (!session || new Date(String(session.expires_at)).getTime() <= Date.now()) {
+	if (
+		!session ||
+		new Date(String(session.expires_at)).getTime() <= Date.now()
+	) {
 		return redirectWithError(c, "invalid_token");
 	}
 
@@ -273,8 +316,14 @@ userAuthRoutes.get("/linuxdo/bind", async (c) => {
 
 	const headers = new Headers();
 	headers.set("Location", `${LINUXDO_AUTH_URL}?${params.toString()}`);
-	headers.append("Set-Cookie", `linuxdo_state=${stateHash}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`);
-	headers.append("Set-Cookie", `linuxdo_bind_user=${bindCookieValue}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`);
+	headers.append(
+		"Set-Cookie",
+		`linuxdo_state=${stateHash}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`,
+	);
+	headers.append(
+		"Set-Cookie",
+		`linuxdo_bind_user=${bindCookieValue}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`,
+	);
 
 	return new Response(null, { status: 302, headers });
 });
@@ -287,7 +336,12 @@ userAuthRoutes.get("/linuxdo/callback", async (c) => {
 	const clientId = c.env.LINUXDO_CLIENT_ID;
 	const clientSecret = c.env.LINUXDO_CLIENT_SECRET;
 	if (!clientId || !clientSecret) {
-		return jsonError(c, 503, "linuxdo_not_configured", "Linux DO login is not configured");
+		return jsonError(
+			c,
+			503,
+			"linuxdo_not_configured",
+			"Linux DO login is not configured",
+		);
 	}
 
 	const code = c.req.query("code");
@@ -412,8 +466,14 @@ userAuthRoutes.get("/linuxdo/callback", async (c) => {
 		// Clear cookies and redirect to user dashboard
 		const headers = new Headers();
 		headers.set("Location", `${origin}/user?linuxdo_bindok=1`);
-		headers.append("Set-Cookie", "linuxdo_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
-		headers.append("Set-Cookie", "linuxdo_bind_user=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+		headers.append(
+			"Set-Cookie",
+			"linuxdo_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+		);
+		headers.append(
+			"Set-Cookie",
+			"linuxdo_bind_user=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+		);
 		return new Response(null, { status: 302, headers });
 	}
 
@@ -446,7 +506,7 @@ userAuthRoutes.get("/linuxdo/callback", async (c) => {
 		const email = `linuxdo_${linuxdoId}@linuxdo.connect`;
 		const displayName = linuxdoUser.name || linuxdoUser.username;
 		// Random password hash so password login is disabled
-		const passwordHash = await sha256Hex(generateToken("pwd_"));
+		const passwordHash = await hashPassword(generateToken("pwd_"));
 		const defaultBalance = siteMode === "shared" ? 100 : 0;
 
 		// Check if username already taken, append suffix if so
@@ -463,10 +523,28 @@ userAuthRoutes.get("/linuxdo/callback", async (c) => {
 		await c.env.DB.prepare(
 			"INSERT INTO users (id, email, name, password_hash, role, balance, status, linuxdo_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		)
-			.bind(id, email, finalName, passwordHash, "user", defaultBalance, "active", linuxdoId, now, now)
+			.bind(
+				id,
+				email,
+				finalName,
+				passwordHash,
+				"user",
+				defaultBalance,
+				"active",
+				linuxdoId,
+				now,
+				now,
+			)
 			.run();
 
-		user = { id, email, name: finalName, role: "user", balance: defaultBalance, status: "active" };
+		user = {
+			id,
+			email,
+			name: finalName,
+			role: "user",
+			balance: defaultBalance,
+			status: "active",
+		};
 	}
 
 	// Create session
@@ -481,7 +559,8 @@ userAuthRoutes.get("/linuxdo/callback", async (c) => {
 		.run();
 
 	// Redirect to frontend with token
-	const clearCookie = "linuxdo_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
+	const clearCookie =
+		"linuxdo_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
 	const frontendUrl = `${origin}/login?linuxdo_token=${encodeURIComponent(rawToken)}`;
 	const headers = new Headers();
 	headers.set("Location", frontendUrl);
@@ -510,17 +589,32 @@ userAuthRoutes.post("/linuxdo/unbind", userAuth, async (c) => {
 function redirectWithError(c: { req: { url: string } }, error: string) {
 	const origin = new URL(c.req.url).origin;
 	const headers = new Headers();
-	headers.set("Location", `${origin}/login?linuxdo_error=${encodeURIComponent(error)}`);
-	headers.set("Set-Cookie", "linuxdo_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+	headers.set(
+		"Location",
+		`${origin}/login?linuxdo_error=${encodeURIComponent(error)}`,
+	);
+	headers.set(
+		"Set-Cookie",
+		"linuxdo_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+	);
 	return new Response(null, { status: 302, headers });
 }
 
 function redirectWithBindError(c: { req: { url: string } }, error: string) {
 	const origin = new URL(c.req.url).origin;
 	const headers = new Headers();
-	headers.set("Location", `${origin}/user?linuxdo_binderror=${encodeURIComponent(error)}`);
-	headers.append("Set-Cookie", "linuxdo_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
-	headers.append("Set-Cookie", "linuxdo_bind_user=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+	headers.set(
+		"Location",
+		`${origin}/user?linuxdo_binderror=${encodeURIComponent(error)}`,
+	);
+	headers.append(
+		"Set-Cookie",
+		"linuxdo_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+	);
+	headers.append(
+		"Set-Cookie",
+		"linuxdo_bind_user=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+	);
 	return new Response(null, { status: 302, headers });
 }
 

@@ -6,16 +6,16 @@ import {
 	getSessionTtlHours,
 	getSiteMode,
 	isAdminPasswordSet,
+	type RegistrationMode,
+	type SiteMode,
 	setAdminPasswordHash,
 	setRegistrationMode,
 	setRetentionDays,
 	setSessionTtlHours,
 	setSiteMode,
-	type RegistrationMode,
-	type SiteMode,
 } from "../services/settings";
-import { sha256Hex } from "../utils/crypto";
 import { jsonError } from "../utils/http";
+import { hashPassword } from "../utils/password";
 
 const settings = new Hono<AppEnv>();
 
@@ -77,7 +77,7 @@ settings.put("/", async (c) => {
 	}
 
 	if (typeof body.admin_password === "string" && body.admin_password.trim()) {
-		const hash = await sha256Hex(body.admin_password.trim());
+		const hash = await hashPassword(body.admin_password.trim());
 		await setAdminPasswordHash(c.env.DB, hash);
 		touched = true;
 	}
@@ -85,12 +85,7 @@ settings.put("/", async (c) => {
 	if (body.site_mode !== undefined) {
 		const validModes: SiteMode[] = ["personal", "service", "shared"];
 		if (!validModes.includes(body.site_mode)) {
-			return jsonError(
-				c,
-				400,
-				"invalid_site_mode",
-				"invalid_site_mode",
-			);
+			return jsonError(c, 400, "invalid_site_mode", "invalid_site_mode");
 		}
 		await setSiteMode(c.env.DB, body.site_mode);
 		touched = true;
