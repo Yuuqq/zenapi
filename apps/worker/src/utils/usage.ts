@@ -173,24 +173,31 @@ export async function parseUsageFromSse(
 		}
 	};
 
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) {
-			break;
-		}
-		buffer += decoder.decode(value, { stream: true });
-		let newlineIndex = buffer.indexOf("\n");
-		while (newlineIndex !== -1) {
-			const line = buffer.slice(0, newlineIndex).trim();
-			buffer = buffer.slice(newlineIndex + 1);
-			if (line.startsWith("data:")) {
-				const payload = line.slice(5).trim();
-				if (payload && payload !== "[DONE]") {
-					absorbCandidate(payload);
-				}
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) {
+				break;
 			}
-			newlineIndex = buffer.indexOf("\n");
+			buffer += decoder.decode(value, { stream: true });
+			let newlineIndex = buffer.indexOf("\n");
+			while (newlineIndex !== -1) {
+				const line = buffer.slice(0, newlineIndex).trim();
+				buffer = buffer.slice(newlineIndex + 1);
+				if (line.startsWith("data:")) {
+					const payload = line.slice(5).trim();
+					if (payload && payload !== "[DONE]") {
+						absorbCandidate(payload);
+					}
+				}
+				newlineIndex = buffer.indexOf("\n");
+			}
 		}
+	} catch {
+		// Stream aborted (client disconnect or upstream reset). Return the usage
+		// observed so far instead of throwing it away — otherwise callers fall
+		// back to a zero-token record.
+		return { usage, firstTokenLatencyMs };
 	}
 
 	const remaining = buffer.trim();

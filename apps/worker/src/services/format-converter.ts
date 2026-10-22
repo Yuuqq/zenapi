@@ -275,6 +275,7 @@ export function createAnthropicToOpenaiStreamTransform(): TransformStream<
 	let currentEventType = "";
 	let messageId = "";
 	let model = "";
+	let sentDone = false;
 	const encoder = new TextEncoder();
 	const decoder = new TextDecoder();
 
@@ -320,6 +321,7 @@ export function createAnthropicToOpenaiStreamTransform(): TransformStream<
 							currentEventType === "message_stop" ||
 							data.type === "message_stop"
 						) {
+							sentDone = true;
 							controller.enqueue(encoder.encode("data: [DONE]\n\n"));
 						}
 					} catch {
@@ -356,7 +358,10 @@ export function createAnthropicToOpenaiStreamTransform(): TransformStream<
 					}
 				}
 			}
-			controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+			// Avoid a second [DONE] when message_stop already emitted one.
+			if (!sentDone) {
+				controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+			}
 		},
 	});
 }
@@ -450,6 +455,7 @@ export function createOpenaiToAnthropicStreamTransform(
 ): TransformStream<Uint8Array, Uint8Array> {
 	let buffer = "";
 	let sentMessageStart = false;
+	let sentMessageStop = false;
 	let contentBlockIndex = 0;
 	const encoder = new TextEncoder();
 	const decoder = new TextDecoder();
@@ -471,6 +477,7 @@ export function createOpenaiToAnthropicStreamTransform(
 				const payload = line.slice(5).trim();
 				if (!payload || payload === "[DONE]") {
 					if (payload === "[DONE]") {
+						sentMessageStop = true;
 						controller.enqueue(
 							encoder.encode(
 								`event: message_stop\ndata: {"type":"message_stop"}\n\n`,
@@ -492,10 +499,15 @@ export function createOpenaiToAnthropicStreamTransform(
 
 					for (const event of events) {
 						controller.enqueue(encoder.encode(event));
-						if (!sentMessageStart && event.includes("message_start")) {
+						// Match on the wire event name, not the whole payload: model
+						// output can legitimately contain these literal strings.
+						if (
+							!sentMessageStart &&
+							event.startsWith("event: message_start\n")
+						) {
 							sentMessageStart = true;
 						}
-						if (event.includes("content_block_start")) {
+						if (event.startsWith("event: content_block_start\n")) {
 							contentBlockIndex++;
 						}
 					}
@@ -507,7 +519,8 @@ export function createOpenaiToAnthropicStreamTransform(
 			}
 		},
 		flush(controller) {
-			if (!sentMessageStart) {
+			// Upstream may already have emitted its own terminator via [DONE].
+			if (!sentMessageStart || sentMessageStop) {
 				return;
 			}
 			controller.enqueue(
